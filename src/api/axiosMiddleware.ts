@@ -12,10 +12,12 @@ import { parseZonePath } from "@/utils/zoneUrl";
 
 const access_key = "903361";
 
-const url = process.env.NEXT_PUBLIC_API_URL;
-const subUrl = process.env.NEXT_PUBLIC_API_SUBURL;
+const rawUrl = process.env.NEXT_PUBLIC_API_URL || "https://panel.makkalstarmart.com";
+const rawSubUrl = process.env.NEXT_PUBLIC_API_SUBURL || "/customer";
+const cleanUrl = rawUrl.replace(/\/+$/, "");
+const cleanSubUrl = rawSubUrl.replace(/^\/+|\/+$/g, "");
 const api: AxiosInstance = axios.create({
-  baseURL: `${url}${subUrl}/`,
+  baseURL: `${cleanUrl}/${cleanSubUrl}/`,
 });
 
 // Request config with the custom, non-standard flag this app adds (see

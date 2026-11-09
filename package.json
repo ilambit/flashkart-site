@@ -2,6 +2,10 @@
   "name": "snapbuy-web",
   "version": "3.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

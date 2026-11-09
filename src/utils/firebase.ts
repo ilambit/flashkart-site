@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, type Auth } from "firebase/auth";
 import {
   deleteToken,
   getMessaging,
@@ -21,13 +21,22 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey &&
+  !firebaseConfig.apiKey.includes("xxxx") &&
+  firebaseConfig.projectId &&
+  !firebaseConfig.projectId.includes("xxxx")
+);
+
+const app = isFirebaseConfigured
+  ? (!getApps().length ? initializeApp(firebaseConfig) : getApp())
+  : null;
+const auth: Auth = (app ? getAuth(app) : null) as unknown as Auth;
 let messaging: Messaging | null = null;
 
 const getMessagingInstance = async (): Promise<Messaging | null> => {
   if (messaging) return messaging;
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || !app) return null;
 
   try {
     const isSupportedBrowser = await isSupported();
@@ -48,6 +57,7 @@ const getMessagingInstance = async (): Promise<Messaging | null> => {
 };
 
 export const registerServiceWorker = (): void => {
+  if (!isFirebaseConfigured) return;
   if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     navigator.serviceWorker
       .register("/firebase-messaging-sw.js")

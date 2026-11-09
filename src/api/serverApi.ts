@@ -6,7 +6,9 @@ import { HOME_LAYOUT_INITIAL_SECTION_LIMIT } from "@/constants/homeLayout";
 // Server-only API helpers for SSR/gSSP with explicit inputs
 
 const ACCESS_KEY = "903361";
-const BASE = `${process.env.NEXT_PUBLIC_API_URL}${process.env.NEXT_PUBLIC_API_SUBURL}`;
+const rawUrl = process.env.NEXT_PUBLIC_API_URL || "https://panel.makkalstarmart.com";
+const rawSubUrl = process.env.NEXT_PUBLIC_API_SUBURL || "/customer";
+const BASE = `${rawUrl.replace(/\/+$/, "")}/${rawSubUrl.replace(/^\/+|\/+$/g, "")}`;
 
 const serverHeaders = ({
   lang,

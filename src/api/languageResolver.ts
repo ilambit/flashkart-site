@@ -5,7 +5,9 @@ import * as apiEndPoints from "@/api/apiEndpoints";
 // Server-side cached language list used by middleware and routing
 
 const ACCESS_KEY = "903361";
-const BASE = `${process.env.NEXT_PUBLIC_API_URL}${process.env.NEXT_PUBLIC_API_SUBURL}`;
+const rawUrl = process.env.NEXT_PUBLIC_API_URL || "https://panel.makkalstarmart.com";
+const rawSubUrl = process.env.NEXT_PUBLIC_API_SUBURL || "/customer";
+const BASE = `${rawUrl.replace(/\/+$/, "")}/${rawSubUrl.replace(/^\/+|\/+$/g, "")}`;
 const SYSTEM_TYPE_WEBSITE = 3;
 const CACHE_TTL_MS = 1000 * 60 * 30; // 30 min — languages change very rarely
 
