@@ -83,7 +83,7 @@ npm run build
 
 # Start the project with PM2
 status_message "Starting the project with PM2"
-pm2 start npm --name "eCommerce" -- start
+pm2 start npm --name "flashkart" -- start
 
 # Save PM2 process list so it survives reboot
 pm2 save

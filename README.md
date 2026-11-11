@@ -1,4 +1,4 @@
-# eCommerce Web
+# Flashkart Web
 
 A single-vendor, multi-country storefront built with Next.js 16. Customers browse a catalog, add to cart, checkout with multiple payment options, track orders, chat with support, and manage their account — content, languages, theme, and layout are all controlled from the admin backend.
 

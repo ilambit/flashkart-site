@@ -7,8 +7,7 @@ import useStandalone from "@/hooks/useStandalone";
 import { CartIcon } from "@/components/icons";
 
 // Default marketplace purchase URL for template demo
-const DEFAULT_BUY_URL =
-  "https://www.marketplace.wrteam.in/products/snapbuy-hyperlocal-quick-commerce-ecommerce-platform";
+const DEFAULT_BUY_URL = "https://www.ilambit.com";
 
 /** Floating "Buy Now" badge displayed on demo deployments */
 const DemoBuyNow = () => {

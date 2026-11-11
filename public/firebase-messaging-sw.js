@@ -9,13 +9,13 @@ importScripts(
 // reads the default app, and without this call it throws during script
 // evaluation — which fails the whole service worker registration.
 firebase.initializeApp({
-  apiKey: "xxxxxxxxxxxxxxxxxxxxxxxx",
-  authDomain: "xxxxxxxxxxxxxxxxxxxxxxxx",
-  projectId: "xxxxxxxxxxxxxxxxxxxxxxxx",
-  storageBucket: "xxxxxxxxxxxxxxxxxxxxxxxx",
-  messagingSenderId: "xxxxxxxxxxxxxxxxxxxxxxxx",
-  appId: "xxxxxxxxxxxxxxxxxxxxxxxx",
-  measurementId: "xxxxxxxxxxxxxxxxxxxxxxxx",
+  apiKey: "AIzaSyC4X81-HpgrbDOBq9Mn7CcHctxK8d5AoH0",
+  authDomain: "makkalstarmart.firebaseapp.com",
+  projectId: "makkalstarmart",
+  storageBucket: "makkalstarmart.firebasestorage.app",
+  messagingSenderId: "947085968127",
+  appId: "1:947085968127:web:4b630776b031f8003f02ca",
+  measurementId: "G-DKCP5RJB2B",
 });
 
 const messaging = firebase.messaging();

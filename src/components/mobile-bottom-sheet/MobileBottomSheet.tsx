@@ -16,11 +16,11 @@ const MobileBottomSheet = () => {
 
   const androidAppLink = settings?.web_settings?.android_app_url;
   const iosAppLink = settings?.web_settings?.ios_app_url;
-  const appName = process.env.NEXT_PUBLIC_WEB_NAME || "eCommerce";
+  const appName = process.env.NEXT_PUBLIC_WEB_NAME || "Flashkart";
 
   // Deep link URI scheme from settings or fallback
   const appScheme =
-    settings?.deeplink_schema || process.env.NEXT_PUBLIC_WEB_NAME || "eCommerce";
+    settings?.deeplink_schema || process.env.NEXT_PUBLIC_WEB_NAME || "Flashkart";
 
   const [isAndroid, setIsAndroid] = useState(false);
   const [isIOS, setIsIOS] = useState(false);

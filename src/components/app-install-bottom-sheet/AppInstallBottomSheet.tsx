@@ -69,7 +69,7 @@ const AppInstallBottomSheet = () => {
 
   const web = settings?.web_settings;
   const appName =
-    web?.web_name || process.env.NEXT_PUBLIC_WEB_NAME || "eCommerce";
+    web?.web_name || process.env.NEXT_PUBLIC_WEB_NAME || "Flashkart";
   const webLogo = web?.web_logo;
   const androidAppLink = web?.android_app_url;
   const iosAppLink = web?.ios_app_url;
