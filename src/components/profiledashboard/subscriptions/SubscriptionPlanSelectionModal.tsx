@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X, Truck, ArrowRight } from "lucide-react";
+import { FiX as X, FiTruck as Truck, FiArrowRight as ArrowRight } from "react-icons/fi";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { t } from "@/utils/translation";

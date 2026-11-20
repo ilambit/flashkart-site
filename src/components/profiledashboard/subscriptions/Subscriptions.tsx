@@ -2,7 +2,7 @@
 
 import { t } from "@/utils/translation";
 import { formatDate } from "@/utils/helperFunction";
-import { ArrowRight, HelpCircle } from "lucide-react";
+import { FiArrowRight as ArrowRight, FiHelpCircle as HelpCircle } from "react-icons/fi";
 import React, { useEffect, useState } from "react";
 import LightImage from "@/assets/Vector-filled.svg";
 import Image from "next/image";

@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X } from "lucide-react";
+import { FiX as X } from "react-icons/fi";
 import { t } from "@/utils/translation";
 import SubscriptionsFaq from "@/components/faqs/SubscriptionFaqCard";
 
