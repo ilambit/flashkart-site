@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { m, useMotionValue, useMotionValueEvent } from "framer-motion";
 import Image from "next/image";
 import { FiVolume2, FiVolumeX } from "react-icons/fi";

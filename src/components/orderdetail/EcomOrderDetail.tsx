@@ -1,8 +1,8 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { MdOutlineFileDownload } from "react-icons/md";
 import * as api from "@/api/apiRoutes";
@@ -52,6 +52,7 @@ import useCurrency from "@/hooks/useCurrency";
 import PeekRating from "@/components/ui/peek-rating/PeekRating";
 import CartLineAddons from "@/components/cart/CartLineAddons";
 import ProductTypeTag from "../productdetail/ProductTypeTag";
+import { formatCurrency } from "@/utils/helperFunction";
 
 // Same status → class map as the Quick Order detail page.
 const STATUS_CLS: Record<number, string> = {
@@ -120,7 +121,7 @@ const EcomOrderDetail = () => {
   // Shares the /order-detail/[orderid] route with Quick Orders; here `orderid`
   // carries the order_item_id (ecom detail key).
   const orderItemId = params?.orderid;
-  const user = useSelector((state: any) => state.User.user);
+  const user = useAppSelector((state) => state.User.user);
   // Ecom order detail payload shape has no shared type yet — see AGENTS.md rule 4.
   const [orderDetail, setOrderDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -183,7 +184,7 @@ const EcomOrderDetail = () => {
         toast.error(response?.message);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[EcomOrderDetail]", error);
     } finally {
       setRating(false);
     }
@@ -206,7 +207,6 @@ const EcomOrderDetail = () => {
         setOrderDetail(null);
       }
     } catch (error) {
-      console.log("Error", error);
       setIsError(true);
       setOrderDetail(null);
     } finally {
@@ -256,8 +256,8 @@ const EcomOrderDetail = () => {
   // orderDetail is a PLACED order — its own currency is a historical fact and
   // wins over the viewer's current zone; useCurrency only fills in when the
   // order response omits it.
-  const { currency } = useCurrency(orderDetail);
-  const price = (v) => `${currency}${v}`;
+  const { currency, decimals } = useCurrency(orderDetail);
+  const price = (v) => formatCurrency(v, currency, decimals || 2, true);
   const statusCls = STATUS_CLS[orderDetail?.active_status] || "orderProcessed";
   // Real split = wallet paid part AND a payment method settled a non-zero
   // residual. A full-wallet order (final_total 0) is NOT a split — showing
@@ -765,7 +765,7 @@ const EcomOrderDetail = () => {
                         Number(orderDetail?.active_status) === 6 &&
                         Number(orderDetail?.product_rating) !== 0 &&
                         orderDetail?.return_requested === null;
-                      const showActions = canCancel || canReturn || isCancelled;
+                      const showActions = canCancel || canReturn;
                       if (!showRating && !showActions) return null;
                       const userRating = findUserRating(orderDetail);
                       return (
@@ -843,11 +843,6 @@ const EcomOrderDetail = () => {
                                     {t("return")}
                                   </button>
                                 )}
-                                {isCancelled && (
-                                  <span className="inline-flex items-center gap-2 rounded-xl bg-[var(--bg-color)] px-4 py-2.5 text-sm font-semibold SecondaryTextColor">
-                                    {t("cancelled")}
-                                  </span>
-                                )}
                               </div>
                               {canReturn && returnDays > 0 && (
                                 <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--bg-color)] px-3 py-2 text-xs font-medium SecondaryTextColor">
@@ -898,10 +893,29 @@ const EcomOrderDetail = () => {
                       </p>
                     )}
 
+                    {/* Item cancelled (active_status 7): status + reason card */}
+                    {isCancelled && (
+                      <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-color)] px-4 py-3.5">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/[0.05] SecondaryTextColor dark:bg-white/[0.08]">
+                          <LuCircleX size={20} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold textColor">
+                            {t("cancelled")}
+                          </p>
+                          {orderDetail?.cancellation_reason && (
+                            <p className="mt-0.5 text-sm leading-relaxed SecondaryTextColor">
+                              {`${t("reason")}: ${orderDetail?.cancellation_reason}`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Refund callout once returned — premium green success card:
                         emerald gradient, accent bar, slow shine, badged amount. */}
-                    {Number(orderDetail?.active_status) === 8 &&
-                      orderDetail?.refund_amount != null && (
+                    {[7, 8].includes(Number(orderDetail?.active_status)) &&
+                      Number(orderDetail?.refund_amount) > 0 && (
                         <div className="relative mt-3 flex items-center gap-3 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-green-50 to-teal-50 px-4 py-3.5 dark:border-emerald-500/25 dark:from-emerald-500/10 dark:via-green-500/10 dark:to-teal-500/10">
                           {/* slow shine sweep */}
                           <span className="savings-shine pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-transparent via-white/60 to-transparent dark:via-white/10" />
@@ -915,15 +929,9 @@ const EcomOrderDetail = () => {
                               {t("refund_completed") || t("refunded")}
                             </p>
                             <p className="mt-0.5 text-[11px] text-emerald-700/70 dark:text-emerald-400/70 leading-snug">
-                              {/* COD has no source to refund to → credited to the
-                                  wallet. Online methods refund to the source. */}
-                              {/cod|cash/i.test(
-                                orderDetail?.payment_method || "",
-                              )
-                                ? t("refund_credited_to_wallet") ||
-                                  "Amount credited to your wallet"
-                                : t("refund_processed_to_source") ||
-                                  "Amount refunded to your original payment method"}
+                              {/* Refunds always credit the wallet, never the source. */}
+                              {t("refund_credited_to_wallet") ||
+                                "Amount credited to your wallet"}
                             </p>
                           </div>
                           <div className="relative shrink-0 text-right">
@@ -1279,8 +1287,7 @@ const EcomOrderDetail = () => {
                       <span className="font-bold text-lg tabular-nums textColor">
                         {price(
                           walletUsed
-                            ? Number(orderDetail?.wallet_balance) +
-                                gatewayResidual
+                            ? Number(orderDetail?.wallet_balance) + gatewayResidual
                             : orderDetail?.final_total,
                         )}
                       </span>

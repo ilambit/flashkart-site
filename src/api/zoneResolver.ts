@@ -1,4 +1,3 @@
-import axios from "axios";
 import { getWithEtag } from "@/api/etagCache";
 import * as apiEndPoints from "@/api/apiEndpoints";
 import { getPolygonCenter } from "@/utils/helperFunction";
@@ -175,11 +174,4 @@ export const firstZoneLocation = async ({
     }
   }
   return null;
-};
-
-// Test/debug escape hatch — lets a caller force the next resolve to refetch.
-export const __clearZonesCache = (): void => {
-  __zonesCache = null;
-  __zonesCachedAt = 0;
-  __lastMissRefetchAt = 0;
 };

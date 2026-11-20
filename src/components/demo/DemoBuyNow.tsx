@@ -1,6 +1,5 @@
 "use client";
-import React from "react";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
 import { t } from "@/utils/translation";
 import useIsHydrated from "@/hooks/useIsHydrated";
 import useStandalone from "@/hooks/useStandalone";
@@ -11,7 +10,7 @@ const DEFAULT_BUY_URL = "https://www.ilambit.com";
 
 /** Floating "Buy Now" badge displayed on demo deployments */
 const DemoBuyNow = () => {
-  const setting = useSelector((state: any) => state.Setting.setting);
+  const setting = useAppSelector((state) => state.Setting.setting);
   // Wait for store rehydration before rendering
   const isHydrated = useIsHydrated();
   // Hide badge in PWA standalone mode

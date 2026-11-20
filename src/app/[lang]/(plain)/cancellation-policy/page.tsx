@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import CancellationPolicyPage from "@/components/pagecomponents/CancellationPolicyPage";
+import CmsPage from "@/components/cms/CmsPage";
+import { getCmsHtml } from "@/utils/cmsContent";
 import LanguageCodesSeed from "@/app/LanguageCodesSeed";
 import { fetchSeoRow, resolveZoneForSeo } from "@/utils/fetchSeoRow";
 import { buildPageMetadata } from "@/utils/buildMetadata";
@@ -62,6 +63,7 @@ export default async function CancellationPolicyRoute({
   params: Params;
 }) {
   const { lang } = await params;
+  const html = await getCmsHtml({ lang, settingKey: "cancellation_policy", countryKey: "cancellation_policy" });
   const result = await loadCancellationData(lang);
   if (result.notFound) notFound();
 
@@ -76,7 +78,7 @@ export default async function CancellationPolicyRoute({
       )}
       {/* SEO H1 — CMS body has none, so visually hidden. */}
       {result.seo.title && <h1 className="sr-only">{result.seo.title}</h1>}
-      <CancellationPolicyPage />
+      <CmsPage html={html} align="start" />
     </div>
   );
 }

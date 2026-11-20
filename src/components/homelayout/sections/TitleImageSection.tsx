@@ -3,8 +3,11 @@
 import React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useAppDispatch } from "@/redux/hooks";
+import { setBlockSource } from "@/redux/slices/productFilterSlice";
 import { pickDeviceImage, toCssAspectRatio } from "@/utils/helperFunction";
 import { resolveIdCsvToSlugCsv } from "@/utils/categorySlugResolver";
+import { withListingTitle } from "@/utils/urlProductFilters";
 import useZoneHref from "@/hooks/useZoneHref";
 import useUrlProductFilters from "@/hooks/useUrlProductFilters";
 import useNavClick from "@/hooks/useNavClick";
@@ -31,6 +34,7 @@ const TitleImageSection = ({
   const { buildQueryPatch } = useUrlProductFilters();
   const openProductsRedirect = useProductsRedirect(resolveCategoryTree);
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
   const src = pickDeviceImage(block?.images, device, block?.image_url);
 
@@ -44,6 +48,7 @@ const TitleImageSection = ({
     (block?.redirect_type === "url" && block?.redirect_url) ||
     (block?.redirect_type === "product" && block?.redirect_slug) ||
     (block?.redirect_type === "category" && block?.redirect_id) ||
+      (block?.redirect_type === "brand" && block?.redirect_id) ||
     (block?.redirect_type === "page" && block?.redirect_slug) ||
     // An all-blank filter set is valid: it opens the unfiltered listing.
     block?.redirect_type === "products";
@@ -56,12 +61,28 @@ const TitleImageSection = ({
     } else if (block?.redirect_type === "product" && block?.redirect_slug) {
       router.push(zoneHref(`/product/${block.redirect_slug}`));
     } else if (block?.redirect_type === "category" && block?.redirect_id) {
+      dispatch(setBlockSource());
       const tree = (await resolveCategoryTree?.()) || [];
       const slug =
         resolveIdCsvToSlugCsv(tree, block.redirect_id.toString()) ||
         block.redirect_id.toString();
       const qs = new URLSearchParams(
-        buildQueryPatch({ category_id: slug }),
+        withListingTitle(
+          buildQueryPatch({ category_id: slug }),
+          block?.redirect_title,
+        ),
+      ).toString();
+      const dest = zoneHref("/products");
+      router.push(qs ? `${dest}?${qs}` : dest);
+    } else if (block?.redirect_type === "brand" && block?.redirect_id) {
+      dispatch(setBlockSource());
+      const qs = new URLSearchParams(
+        withListingTitle(
+          buildQueryPatch({
+            brand_ids: [Number.parseInt(String(block.redirect_id), 10)],
+          }),
+          block?.redirect_title,
+        ),
       ).toString();
       const dest = zoneHref("/products");
       router.push(qs ? `${dest}?${qs}` : dest);

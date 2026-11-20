@@ -1,3 +1,4 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useState, useRef, useEffect, ComponentType } from "react";
 import OtpInput from "react-otp-input";
 import Link from "next/link";
@@ -10,11 +11,11 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { RiCloseFill } from "react-icons/ri";
 import * as api from "@/api/apiRoutes";
 import { toast } from "react-toastify";
-import { useDispatch, useSelector } from "react-redux";
 import { setAuthType } from "@/redux/slices/userSlice";
 import PasswordRules from "../passwordrules/PasswordRules";
 import { useValidatePassword } from "@/utils/passwordValidation";
 import { loadFirebaseAuth } from "@/utils/lazyFirebaseAuth";
+import { getPhoneVerificationToken, type LoginProof } from "@/utils/loginProof";
 import { getRecaptchaVerifier, clearRecaptchaVerifier } from "@/utils/recaptchaVerifier";
 
 // Cast so OtpInput accepts className (forwarded at runtime, missing from types).
@@ -41,7 +42,7 @@ interface RegisterProps {
   setTimer?: (value: number) => void;
   setOtpDisabled?: (value: boolean) => void;
   // Gives Login's OTP screen a resend built from Register's form.
-  setEmailOtpResend?: (fn: (() => void) | null) => void;
+  setEmailOtpResend?: (fn: (() => void) | null, password?: string) => void;
   // Clears stale Login error on the shared OTP screen.
   setLoginError?: (value: string) => void;
 }
@@ -75,9 +76,9 @@ const Register = ({
   setLoginError,
 }: RegisterProps) => {
   const zoneHref = useZoneHref();
-  const dispatch = useDispatch();
-  const fcmToken = useSelector((state: any) => state.User?.fcm_token);
-  const setting = useSelector((state: any) => state.Setting.setting);
+  const dispatch = useAppDispatch();
+  const fcmToken = useAppSelector((state) => state.User?.fcm_token);
+  const setting = useAppSelector((state) => state.Setting.setting);
 
 
   const [name, setName] = useState("");
@@ -107,6 +108,7 @@ const Register = ({
 
   // RecaptchaVerifier is a single shared instance across Login/Register/ForgetPassword.
   const registerConfirmationResultRef = useRef<any>(null);
+  const registerProofRef = useRef<LoginProof>({});
   // Blocks double-click resend.
   const resendInFlightRef = useRef(false);
 
@@ -204,7 +206,7 @@ const Register = ({
         await handleEmailRegister(e);
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[Register]", error);
     }
   };
 
@@ -227,6 +229,9 @@ const Register = ({
         password: password,
         fcm: fcmToken,
         phoneAuthType: true,
+        firebaseIdToken: registerProofRef.current.firebaseIdToken,
+        otp: registerProofRef.current.otp,
+        phoneVerificationToken: registerProofRef.current.phoneVerificationToken,
       });
       if (res?.status == 1) {
         toast.success(t("succesfull_register_message"));
@@ -236,7 +241,11 @@ const Register = ({
         clearRecaptchaVerifier();
         registerConfirmationResultRef.current = null;
         setIsLoading(false);
-        toast.error(translateOrRaw(res?.message));
+        toast.error(
+          String(res?.status_code).toUpperCase() === "IDENTITY_NOT_VERIFIED"
+            ? t("identity_not_verified")
+            : translateOrRaw(res?.message),
+        );
         setShowRegister(false);
         setIsPhoneOtp(false);
         setOtp(null);
@@ -248,7 +257,7 @@ const Register = ({
         setEmail("");
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[Register]", error);
     }
   };
 
@@ -309,12 +318,10 @@ const Register = ({
           setIsLoading(false);
           setIsPhoneOtp(true);
         } catch (error: any) {
-          console.log("[otp] send failed:", error?.code, error?.message, error);
           // Spent verifier can't be reused — clear it so retry gets a fresh one.
           clearRecaptchaVerifier();
           setError(friendlyPhoneAuthError(error));
           setErrorType("phone");
-          console.log("error", error);
           setIsLoading(false);
           setIsPhoneOtp(false);
         }
@@ -335,7 +342,6 @@ const Register = ({
             setIsLoading(false);
           }
         } catch (error: any) {
-          console.log("[otp] send failed:", error?.code, error?.message, error);
           setError(t("custom_send_sms_error_message"));
           setIsLoading(false);
         }
@@ -356,12 +362,14 @@ const Register = ({
     if (setting?.firebase_authentication == 1) {
       setIsLoading(true);
       try {
-        await registerConfirmationResultRef.current.confirm(otp);
+        const cred = await registerConfirmationResultRef.current.confirm(otp);
+        registerProofRef.current = {
+          firebaseIdToken: await cred.user.getIdToken(),
+        };
         setIsLoading(false);
         return true;
       } catch (error: any) {
         // Logs the real Firebase error instead of a blanket "invalid OTP".
-        console.log("otp verify error", error?.code, error?.message, error);
         setIsLoading(false);
         return false;
       }
@@ -377,6 +385,10 @@ const Register = ({
           normalizeApiCode(response?.status_code) ||
           normalizeApiCode(response?.message);
         if (code === "user_not_exist" || code === "otp_valid_but_user_not_found") {
+          registerProofRef.current = {
+            otp: otp ?? undefined,
+            phoneVerificationToken: getPhoneVerificationToken(response),
+          };
           return true;
         }
         if (code === "otp_verified" || code === "otp_verified_successfully") {
@@ -386,7 +398,6 @@ const Register = ({
         toast.error(t("otp_invalid_or_expired"));
         return null;
       } catch (error) {
-        console.log("otp verify error", error);
         setIsLoading(false);
         return false;
       }
@@ -448,7 +459,7 @@ const Register = ({
               resendInFlightRef.current = false;
             }
           })();
-        });
+        }, password);
         setLoginError?.("");
         setTimer?.(90);
         setOtpDisabled?.(true);
@@ -482,7 +493,6 @@ const Register = ({
       }
     } catch (error: any) {
       // Surfaces the failure instead of leaving the button spinning silently.
-      console.log("error", error);
       setIsLoading(false);
       toast.error(
         error?.response?.data?.message || t("something_went_wrong")
@@ -507,6 +517,7 @@ const Register = ({
   const handleCloseRegister = (e?: React.MouseEvent) => {
     clearRecaptchaVerifier();
     registerConfirmationResultRef.current = null;
+    registerProofRef.current = {};
     setName("");
     setEmail("");
     setPhoneNumber("");

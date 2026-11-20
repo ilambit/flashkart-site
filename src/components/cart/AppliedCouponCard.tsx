@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { MdOutlineCelebration } from "react-icons/md";
 import { FiTrash2 } from "react-icons/fi";
 import { t } from "@/utils/translation";

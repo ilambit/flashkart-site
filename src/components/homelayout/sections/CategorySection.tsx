@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppDispatch } from "@/redux/hooks";
 import React from "react";
-import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, FreeMode } from "swiper/modules";
@@ -31,7 +31,7 @@ const CategorySection = ({ block, borderRadius, device = "web" }: CategorySectio
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
   const dir = useDir();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const { run: runNavClick } = useNavClick();
 
@@ -150,6 +150,8 @@ const CategorySection = ({ block, borderRadius, device = "web" }: CategorySectio
           src={category.image_url}
           width={300}
           height={300}
+          fetchPriority="low"
+          sizes="96px"
           alt={category?.translations?.name ?? category?.name}
           className="w-full h-full aspect-square object-contain p-1"
         />

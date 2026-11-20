@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useCallback, useEffect, useState } from "react";
 import BreadCrumb from "../breadcrumb/BreadCrumb";
-import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import * as api from "@/api/apiRoutes";
 import BrandCard from "./BrandCard";
@@ -15,11 +15,11 @@ import useUrlProductFilters from "@/hooks/useUrlProductFilters";
 const Brands = () => {
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const brandsPerPage = 12;
-  const lat = useSelector((state: any) => state.City.city?.latitude);
-  const lng = useSelector((state: any) => state.City.city?.longitude);
+  const lat = useAppSelector((state) => state.City.city?.latitude);
+  const lng = useAppSelector((state) => state.City.city?.longitude);
 
   const [brands, setBrands] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,7 +39,6 @@ const Brands = () => {
         setBrands(response.data || []);
         setTotalBrands(response?.total || 0); // Assuming total count is in response.data.total
       } catch (error) {
-        console.log("Error fetching brands:", error);
       }
       setIsLoading(false);
     },

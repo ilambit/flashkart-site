@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import useLanguages from "@/hooks/useLanguages";
 import { buildLocalizedPath } from "@/utils/canonicalUrl";
@@ -11,7 +11,7 @@ const useZoneUrlSync = () => {
   const pathname = usePathname();
   const params = useParams<{ lang?: string; zone?: string }>();
   const { defaultCode } = useLanguages();
-  const zoneSlug = useSelector((state: any) => state?.ShopMode?.zoneSlug);
+  const zoneSlug = useAppSelector((state) => state?.ShopMode?.zoneSlug);
   const lastSynced = useRef<string | null>(null);
   // The route zone this hook has already seen settle.
   const seenRouteZone = useRef<string | null>(null);

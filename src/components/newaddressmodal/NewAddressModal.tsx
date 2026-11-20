@@ -1,3 +1,4 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { t } from "@/utils/translation";
@@ -6,7 +7,6 @@ import * as api from "@/api/apiRoutes";
 import { BiCurrentLocation } from "react-icons/bi";
 import { FiSearch } from "react-icons/fi";
 import Loader from "../loader/Loader";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import useGeocode from "@/hooks/useGeocode";
 import MapWrapper from "@/components/maps/MapWrapper";
@@ -67,6 +67,12 @@ interface NewAddressModalProps {
   adoptZone?: boolean;
 }
 
+// API may send literal "null"/"undefined" strings; keep them out of inputs
+const clean = (value: any) => {
+  const str = String(value ?? "").trim();
+  return str === "null" || str === "undefined" ? "" : str;
+};
+
 const NewAddressModal = ({
   showAddAddres,
   setShowAddAddres,
@@ -74,10 +80,10 @@ const NewAddressModal = ({
   fetchAddress,
   adoptZone = true,
 }: NewAddressModalProps) => {
-  const dispatch = useDispatch();
-  const addresses = useSelector((state: any) => state.Addresses);
-  const city = useSelector((state: any) => state.City.city);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const dispatch = useAppDispatch();
+  const addresses = useAppSelector((state) => state.Addresses);
+  const city = useAppSelector((state) => state.City.city);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   const dir = useDir();
   const { reverseGeocode, forwardGeocode } = useGeocode();
   const [addressLoading, setAddressLoading] = useState<boolean | string>("");
@@ -189,7 +195,7 @@ const NewAddressModal = ({
       } finally {
         setSearchLoading(false);
       }
-    }, 400);
+    }, 300);
     return () => clearTimeout(id);
   }, [searchQuery]);
 
@@ -284,26 +290,35 @@ const NewAddressModal = ({
         setlocalLocation({ lat: savedLat, lng: savedLng });
       }
       setaddressDetails({
-        name: addresses.selectedEditAddress.name,
-        mobile_num: addresses.selectedEditAddress.mobile,
-        country_code: addresses.selectedEditAddress.country_code,
-        alternate_mobile_num: addresses.selectedEditAddress.alternate_mobile,
-        alternate_country_code:
-          addresses.selectedEditAddress.alternate_country_code,
-        address: addresses.selectedEditAddress.address,
-        landmark: addresses.selectedEditAddress.landmark,
-        city: addresses.selectedEditAddress.city,
-        area: addresses.selectedEditAddress.area,
-        pincode: addresses.selectedEditAddress.pincode,
-        state: addresses.selectedEditAddress.state,
-        country: addresses.selectedEditAddress.country,
+        name: clean(addresses.selectedEditAddress.name),
+        mobile_num: clean(addresses.selectedEditAddress.mobile),
+        country_code: clean(addresses.selectedEditAddress.country_code),
+        alternate_mobile_num: clean(
+          addresses.selectedEditAddress.alternate_mobile
+        ),
+        alternate_country_code: clean(
+          addresses.selectedEditAddress.alternate_country_code
+        ),
+        address: clean(addresses.selectedEditAddress.address),
+        landmark: clean(addresses.selectedEditAddress.landmark),
+        city: clean(addresses.selectedEditAddress.city),
+        area: clean(addresses.selectedEditAddress.area),
+        pincode: clean(addresses.selectedEditAddress.pincode),
+        state: clean(addresses.selectedEditAddress.state),
+        country: clean(addresses.selectedEditAddress.country),
         country_id: addresses.selectedEditAddress.country_id
           ? String(addresses.selectedEditAddress.country_id)
           : "",
         region_id: addresses.selectedEditAddress.region_id
           ? String(addresses.selectedEditAddress.region_id)
           : "",
-        address_type: addresses.selectedEditAddress.type,
+        // API type casing varies ("home"); map to button values
+        address_type:
+          ["Home", "Office", "Other"].find(
+            (v) =>
+              v.toLowerCase() ===
+              String(addresses.selectedEditAddress.type || "").trim().toLowerCase()
+          ) || "Home",
         is_default:
           addresses.selectedEditAddress.is_default === 1 ? true : false,
       });
@@ -453,7 +468,15 @@ const NewAddressModal = ({
         latitiude: lat,
         longitude: lng,
         is_default: addressDetails.is_default,
+      }).catch((error) => {
+        // Errors (incl. 429) are toasted by the axios middleware.
+        console.error("[NewAddressModal]", error);
+        return null;
       });
+      if (!response) {
+        setLoading(false);
+        return;
+      }
       if (response.status == 1) {
         if (adoptZone) await adoptZoneForAddress(lat, lng);
         fetchAddress({ selectNewestFrom: prevIds });
@@ -503,7 +526,15 @@ const NewAddressModal = ({
         latitiude: lat,
         longitude: lng,
         is_default: addressDetails.is_default,
+      }).catch((error) => {
+        // Errors (incl. 429) are toasted by the axios middleware.
+        console.error("[NewAddressModal]", error);
+        return null;
       });
+      if (!response) {
+        setLoading(false);
+        return;
+      }
       if (response.status === 1) {
         if (adoptZone) await adoptZoneForAddress(lat, lng);
         toast.success("Succesfully Updated Address!");
@@ -603,7 +634,7 @@ const NewAddressModal = ({
         }
       }
     } catch (error: any) {
-      console.log(error);
+      console.error("[NewAddressModal]", error);
     } finally {
       setAddressLoading(false);
     }
@@ -678,10 +709,9 @@ const NewAddressModal = ({
                 state: result.state,
               }));
             } else {
-              console.log("No result found");
             }
           } catch (error: any) {
-            console.log(error);
+            console.error("[NewAddressModal]", error);
           }
         },
         (error: GeolocationPositionError) => {
@@ -694,7 +724,6 @@ const NewAddressModal = ({
         },
       );
     } else {
-      console.log("geolocation not present in navigator");
     }
   };
 

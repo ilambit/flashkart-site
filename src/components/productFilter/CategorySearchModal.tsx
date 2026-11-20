@@ -75,7 +75,11 @@ const CategorySearchModal = ({
         byLetter[key].push({ node: category, parentName: null });
       });
     } else {
+      // Same category can be reached through repeated subtrees; keep first hit
+      const seen = new Set<string | number>();
       searchTree(categories, q).forEach((match) => {
+        if (seen.has(match.node?.id)) return;
+        seen.add(match.node?.id);
         const key = groupKeyFor(categoryName(match.node));
         byLetter[key] ??= [];
         byLetter[key].push(match);

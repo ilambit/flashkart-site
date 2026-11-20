@@ -1,6 +1,6 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import useStandalone from "@/hooks/useStandalone";
-import { useSelector } from "react-redux";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -57,9 +57,9 @@ const AppInstallBottomSheet = () => {
   const [closing, setClosing] = useState(false);
   const isStandalone = useStandalone();
 
-  const settings = useSelector((state: any) => state.Setting.setting);
+  const settings = useAppSelector((state) => state.Setting.setting);
   // Wait for a city — else this sheet stacks over the blocking location modal.
-  const hasCity = useSelector((state: any) => state.City.city != null);
+  const hasCity = useAppSelector((state) => state.City.city != null);
 
   const triggeredRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,8 +69,8 @@ const AppInstallBottomSheet = () => {
 
   const web = settings?.web_settings;
   const appName =
-    web?.web_name || process.env.NEXT_PUBLIC_WEB_NAME || "Flashkart";
-  const webLogo = web?.web_logo;
+    web?.web_name || process.env.NEXT_PUBLIC_WEB_NAME || "eCommerce";
+  const webLogo = web?.web_logo || "/logo.png";
   const androidAppLink = web?.android_app_url;
   const iosAppLink = web?.ios_app_url;
   // API sends "" for an unconfigured store — normalize to undefined.

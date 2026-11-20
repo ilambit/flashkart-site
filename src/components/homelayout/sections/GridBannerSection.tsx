@@ -1,8 +1,8 @@
 "use client";
 
+import { useAppDispatch } from "@/redux/hooks";
 import React, { useRef, useState } from "react";
 import Image from "next/image";
-import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import {
   setListingSource,
@@ -12,6 +12,7 @@ import {
 } from "@/redux/slices/productFilterSlice";
 import { toCssRadius, pickDeviceImage, pickDeviceNumber, toCssAspectRatio } from "@/utils/helperFunction";
 import { resolveIdCsvToSlugCsv } from "@/utils/categorySlugResolver";
+import { withListingTitle } from "@/utils/urlProductFilters";
 import useZoneHref from "@/hooks/useZoneHref";
 import useUrlProductFilters from "@/hooks/useUrlProductFilters";
 import useNavClick from "@/hooks/useNavClick";
@@ -37,7 +38,7 @@ const GridBannerSection = ({
   const { buildQueryPatch } = useUrlProductFilters();
   const openProductsRedirect = useProductsRedirect(resolveCategoryTree);
   const router = useRouter();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { run: runNavClick } = useNavClick();
 
   const config = block?.config || {};
@@ -105,6 +106,8 @@ const GridBannerSection = ({
   })();
 
   const scrollerRef = useRef<HTMLDivElement>(null);
+  // Real ratio of the first tile image, once known.
+  const [naturalRatio, setNaturalRatio] = useState<string | null>(null);
   const dragRef = useRef({
     active: false,
     startX: 0,
@@ -182,13 +185,22 @@ const GridBannerSection = ({
       dispatch(setCategoryBreadcrumb({ data: [] }));
       dispatch(setBlockSource());
       const qs = new URLSearchParams(
-        buildQueryPatch({ category_id: slug }),
+        withListingTitle(
+          buildQueryPatch({ category_id: slug }),
+          item?.redirect_title,
+        ),
       ).toString();
       const dest = zoneHref("/products");
       router.push(qs ? `${dest}?${qs}` : dest);
     } else if (item?.redirect_type === "brand" && item?.redirect_id) {
+      dispatch(setBlockSource());
       const qs = new URLSearchParams(
-        buildQueryPatch({ brand_ids: [Number.parseInt(item.redirect_id, 10)] }),
+        withListingTitle(
+          buildQueryPatch({
+            brand_ids: [Number.parseInt(item.redirect_id, 10)],
+          }),
+          item?.redirect_title,
+        ),
       ).toString();
       const dest = zoneHref("/products");
       router.push(qs ? `${dest}?${qs}` : dest);
@@ -244,6 +256,9 @@ const GridBannerSection = ({
     </div>
   );
 
+  // Unconfigured aspect ratio used to reserve a 1920x1920 square, so every
+  // tile collapsed to the real banner height on load — the page's whole CLS.
+  // Reserve 16:9 until the first image reports its true ratio, then reuse it.
   const renderTile = (item: any, index: number) => {
     const src = pickDeviceImage(item?.images, device, item?.image_url);
     const clickable =
@@ -262,7 +277,14 @@ const GridBannerSection = ({
         className={`relative w-full overflow-hidden border-0 bg-transparent p-0 text-left disabled:cursor-default ${
           scrolls ? "snap-start" : ""
         } ${clickable ? "cursor-pointer" : ""}`}
-        style={{ borderRadius: tileRadius, ...(aspectRatio ? { aspectRatio } : {}) }}
+        style={{
+          borderRadius: tileRadius,
+          ...(aspectRatio
+            ? { aspectRatio }
+            : naturalRatio
+              ? { aspectRatio: naturalRatio }
+              : {}),
+        }}
         onClick={() => handleClick(item, index)}
       >
         <Image
@@ -272,9 +294,17 @@ const GridBannerSection = ({
           draggable={false}
           onDragStart={(event: React.DragEvent) => event.preventDefault()}
           priority={priority && index === 0}
-          className={`w-full ${aspectRatio ? "h-full object-cover" : "h-auto object-contain"}`}
+          fetchPriority={priority && index === 0 ? undefined : "low"}
+          className={`w-full ${aspectRatio ? "h-full object-cover" : naturalRatio ? "h-full object-contain" : "h-auto object-contain"}`}
+          onLoad={(event) => {
+            if (aspectRatio || naturalRatio) return;
+            const img = event.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) {
+              setNaturalRatio(`${img.naturalWidth} / ${img.naturalHeight}`);
+            }
+          }}
           width={1920}
-          height={1920}
+          height={1080}
           sizes={`(max-width: 768px) ${Math.round(100 / columns)}vw, ${Math.round(1280 / columns)}px`}
           quality={75}
         />

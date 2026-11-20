@@ -1,12 +1,12 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { formatCustomDate } from "@/lib/utils";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import { useState } from "react";
 import { FaRegBell } from "react-icons/fa";
 import { IoTimeOutline } from "react-icons/io5";
-import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import useZoneHref from "@/hooks/useZoneHref";
 import useUrlProductFilters from "@/hooks/useUrlProductFilters";
@@ -24,8 +24,8 @@ const NotificationCard = ({ notification }: NotificationCardProps) => {
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
   const router = useRouter();
-  const city = useSelector((state: any) => state.City);
-  const setting = useSelector((state: any) => state.Setting?.setting);
+  const city = useAppSelector((state) => state.City);
+  const setting = useAppSelector((state) => state.Setting?.setting);
   const [resolving, setResolving] = useState(false);
   // The notification payload only carries a numeric `type_id`, no slug — the
   // URL's category param is slug-typed (see categorySlugResolver.js), and the
@@ -74,7 +74,6 @@ const NotificationCard = ({ notification }: NotificationCardProps) => {
           );
         }
       } catch (err: any) {
-        console.log("notification product resolve failed:", err?.message);
         toast.error(t("something_went_wrong"));
       } finally {
         setResolving(false);

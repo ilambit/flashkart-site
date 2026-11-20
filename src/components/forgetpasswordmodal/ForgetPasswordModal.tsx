@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useAppSelector } from "@/redux/hooks";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { RiCloseFill } from "react-icons/ri";
 import { t } from "@/utils/translation";
@@ -6,10 +7,10 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import * as api from "@/api/apiRoutes";
 import { toast } from "react-toastify";
 import PhoneNumberInput from "../phonenumberinput/PhoneNumberInput";
-import { useSelector } from "react-redux";
 import PasswordRules from "../passwordrules/PasswordRules";
 import { useValidatePassword } from "@/utils/passwordValidation";
 import { loadFirebaseAuth } from "@/utils/lazyFirebaseAuth";
+import { isIdentityNotVerified } from "@/utils/loginProof";
 import { getRecaptchaVerifier, clearRecaptchaVerifier } from "@/utils/recaptchaVerifier";
 
 interface ForgetPasswordModalProps {
@@ -36,8 +37,8 @@ const ForgetPasswordModal = ({
   forgotPasswordType,
   isErrorMessage,
 }: ForgetPasswordModalProps) => {
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
-  const setting = useSelector((state: any) => state.Setting.setting);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
+  const setting = useAppSelector((state) => state.Setting.setting);
   const [stage, setStage] = useState(0);
   const [email, setEmail] = useState<string | null>("");
   const [otp, setOtp] = useState<string | null>("");
@@ -48,6 +49,7 @@ const ForgetPasswordModal = ({
   // Password policy error derived from input value
   const passwordPolicyError = useValidatePassword(password);
   const [loading, setLoading] = useState(false);
+  const firebaseIdTokenRef = useRef<string | undefined>(undefined);
   const [phoneNumber, setPhoneNumber] = useState<string | null>("");
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [phoneNumberWithoutCountryCode, setPhoneNumberWithoutCountryCode] =
@@ -87,6 +89,7 @@ const ForgetPasswordModal = ({
   const handleShowModal = () => {
     // Clear reCAPTCHA verifier before closing modal
     clearRecaptchaVerifier();
+    firebaseIdTokenRef.current = undefined;
     setStage(0);
     setLoading(false);
     setPhoneNumber(null);
@@ -114,7 +117,6 @@ const ForgetPasswordModal = ({
       }
     } catch (error) {
       setLoading(false);
-      console.log("error", error);
     }
   };
 
@@ -138,6 +140,7 @@ const ForgetPasswordModal = ({
             return;
           }
           const { auth, signInWithPhoneNumber } = await loadFirebaseAuth();
+          firebaseIdTokenRef.current = undefined;
           const confirmationResult = await signInWithPhoneNumber(
             auth,
             phoneNumberWithoutSpaces,
@@ -148,7 +151,6 @@ const ForgetPasswordModal = ({
           setLoading(false);
           setStage(1);
         } catch (error: any) {
-          console.log("error from send otp", error);
           // Drop the spent verifier — Firebase won't accept it for a retry.
           clearRecaptchaVerifier();
           setPhoneNumber("");
@@ -190,6 +192,7 @@ const ForgetPasswordModal = ({
       setLoading(true);
       try {
         const user = await (window as any).confirmationResult.confirm(otp);
+        firebaseIdTokenRef.current = await user.user.getIdToken();
         setLoading(false);
         return true;
       } catch (error) {
@@ -217,7 +220,7 @@ const ForgetPasswordModal = ({
           return false;
         }
       } catch (error) {
-        console.log("error", error);
+        console.error("[ForgetPasswordModal]", error);
       }
     }
   };
@@ -256,11 +259,10 @@ const ForgetPasswordModal = ({
       } else {
         setLoading(false);
         setStage(1);
-        toast.error(res.message);
+        toast.error(isIdentityNotVerified(res) ? t("identity_not_verified") : res.message);
       }
     } catch (error) {
       setLoading(false);
-      console.log("error", error);
     }
   };
 
@@ -298,7 +300,7 @@ const ForgetPasswordModal = ({
         toast.error(t("user_not_exist_message") || res?.message);
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[ForgetPasswordModal]", error);
     }
   };
 
@@ -325,11 +327,18 @@ const ForgetPasswordModal = ({
         setConfirmPassword("");
         return;
       }
+      // Backend rejects firebase resets without the verified user's ID token.
+      if (setting?.firebase_authentication == 1 && !firebaseIdTokenRef.current) {
+        toast.error(t("identity_not_verified"));
+        setLoading(false);
+        return;
+      }
       const res = await api.forgotPassword({
         phone: phoneNumberWithoutCountryCode,
         // Send OTP verification payload for mobile password reset
         otp: otp,
-        otpMethod: "firebase",
+        otpMethod: setting?.firebase_authentication == 1 ? "firebase" : "twilio",
+        firebaseIdToken: firebaseIdTokenRef.current,
         type: forgotPasswordType,
         password: password,
         confirmPassword,
@@ -342,7 +351,7 @@ const ForgetPasswordModal = ({
         setShowForgetPassword(false);
         setStage(0);
       } else {
-        toast.error(res.message);
+        toast.error(isIdentityNotVerified(res) ? t("identity_not_verified") : res.message);
         setOtp(null);
         setPassword("");
         setConfirmPassword("");
@@ -350,7 +359,7 @@ const ForgetPasswordModal = ({
         setStage(0);
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[ForgetPasswordModal]", error);
     }
   };
 

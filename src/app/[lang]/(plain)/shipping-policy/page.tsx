@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import ShippingPolicyPage from "@/components/pagecomponents/ShippingPolicyPage";
+import CmsPage from "@/components/cms/CmsPage";
+import { getCmsHtml } from "@/utils/cmsContent";
 import { fetchSeoRow, resolveZoneForSeo } from "@/utils/fetchSeoRow";
 import { buildPageMetadata } from "@/utils/buildMetadata";
 import { canonicalUrl, hreflangAlternates } from "@/utils/canonicalUrl";
@@ -62,6 +63,7 @@ export default async function ShippingPolicyRoute({
   params: Params;
 }) {
   const { lang } = await params;
+  const html = await getCmsHtml({ lang, settingKey: "shipping_policy", countryKey: "shipping_policy" });
   const result = await loadShippingPolicySeo(lang);
   if (result.notFound) notFound();
 
@@ -76,7 +78,7 @@ export default async function ShippingPolicyRoute({
       )}
       {/* SEO H1 — CMS body has none, so visually hidden. */}
       {result.seo.title && <h1 className="sr-only">{result.seo.title}</h1>}
-      <ShippingPolicyPage />
+      <CmsPage html={html} align="start" />
     </div>
   );
 }

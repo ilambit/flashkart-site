@@ -1,4 +1,4 @@
-import React from "react";
+import { useAppSelector } from "@/redux/hooks";
 import {
   Sheet,
   SheetContent,
@@ -8,7 +8,6 @@ import {
 import Filter from "./ProductFilter";
 import { t } from "@/utils/translation";
 import { RiCloseFill } from "react-icons/ri";
-import { useSelector } from "react-redux";
 
 interface FilterDrawerProps {
   showFilter: boolean;
@@ -36,10 +35,10 @@ const FilterDrawer = ({
   setMinPrice,
   setMaxPrice,
 }: FilterDrawerProps) => {
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   const {
     listing_source
-  } = useSelector((state: any) => state.ProductFilter);
+  } = useAppSelector((state) => state.ProductFilter);
 
 
   return (

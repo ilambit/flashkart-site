@@ -1,11 +1,10 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { t } from "@/utils/translation";
 import Image from "next/image";
-import React from "react";
-import { useSelector, useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import * as api from "@/api/apiRoutes";
 import { setCartPromo, clearCartPromo } from "@/redux/slices/cartSlice";
-import { Copy, Scissors } from "lucide-react";
+import { LuCopy, LuScissors } from "react-icons/lu";
 import { RiCoupon3Line, RiWallet3Line } from "react-icons/ri";
 import useCurrency from "@/hooks/useCurrency";
 
@@ -16,9 +15,9 @@ interface CouponCodeCardProps {
 }
 
 const CouponCodeCard = ({ coupon, setShowCouponCode }: CouponCodeCardProps) => {
-  const dispatch = useDispatch();
-  const cart = useSelector((state: any) => state.Cart);
-  const city = useSelector((state: any) => state.City?.city);
+  const dispatch = useAppDispatch();
+  const cart = useAppSelector((state) => state.Cart);
+  const city = useAppSelector((state) => state.City?.city);
   // Coupon is shown in the current checkout/cart context (live promo list for
   // the active zone), not a past record — use the current-zone currency.
   const { currency } = useCurrency();
@@ -45,7 +44,6 @@ const CouponCodeCard = ({ coupon, setShowCouponCode }: CouponCodeCardProps) => {
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("Error", error);
       toast.error(t("something_went_wrong"));
     }
   };
@@ -136,7 +134,7 @@ const CouponCodeCard = ({ coupon, setShowCouponCode }: CouponCodeCardProps) => {
 
       {/* Dashed tear line with scissors */}
       <div className="flex items-center gap-2 px-3 SecondaryTextColor">
-        <Scissors size={14} className="shrink-0 rtl:-scale-x-100" />
+        <LuScissors size={14} className="shrink-0 rtl:-scale-x-100" />
         <span className="flex-grow border-t border-dashed" />
       </div>
 
@@ -148,7 +146,7 @@ const CouponCodeCard = ({ coupon, setShowCouponCode }: CouponCodeCardProps) => {
           className="group inline-flex min-w-0 items-center gap-1.5 rounded-md primaryDashedBorder px-2.5 py-1 text-xs font-bold uppercase tracking-wide primaryColor dark:text-zinc-200"
         >
           <span className="truncate">{coupon?.promo_code}</span>
-          <Copy size={12} className="shrink-0 opacity-70 group-hover:opacity-100" />
+          <LuCopy size={12} className="shrink-0 opacity-70 group-hover:opacity-100" />
         </button>
         <button
           disabled={isDisabled && !isApplied}

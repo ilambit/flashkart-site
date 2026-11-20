@@ -12,7 +12,7 @@ export const clearRecaptchaVerifier = (): void => {
     try {
       verifier.clear();
     } catch (error: any) {
-      console.log("recaptcha clear failed", error);
+      console.error("[recaptchaVerifier]", error);
     }
   }
   if (container && document.body.contains(container)) {
@@ -34,7 +34,6 @@ export const getRecaptchaVerifier = async (containerId: string): Promise<any> =>
   verifier = new RecaptchaVerifier(auth, container, {
     size: "invisible",
     "expired-callback": () => {
-      console.log("[recaptcha] widget expired");
       verifier = null;
       verifierContainerId = null;
     },

@@ -1,11 +1,10 @@
 "use client";
 
-import React from "react";
 import BlogDetail from "../blogs/BlogDetail";
 
-const BlogDetailPage = () => {
+const BlogDetailPage = ({ descriptionHtml }: { descriptionHtml: string }) => {
   return (
-    <BlogDetail />
+    <BlogDetail descriptionHtml={descriptionHtml} />
   );
 };
 

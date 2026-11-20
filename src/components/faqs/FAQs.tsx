@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import BreadCrumb from "../breadcrumb/BreadCrumb";
 import * as api from "../../api/apiRoutes";
 import FAQCard from "./FAQCard";
@@ -12,7 +12,7 @@ const FAQs = () => {
   const [faqs, setFaqs] = useState<any[]>([]);
   const total_faqs_per_page = 7;
   const [currPage, setcurrPage] = useState(1);
-  const [offset, setoffset] = useState(0);
+  const [, setoffset] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [totalFaqs, setTotalFaqs] = useState(0);
 
@@ -29,7 +29,6 @@ const FAQs = () => {
         setIsLoading(false);
       } catch (error) {
         setIsLoading(false);
-        console.log("FAQs page error: ", error);
       }
     },
     [faqs],

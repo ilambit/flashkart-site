@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import axios from "axios";
 import { getWithEtag } from "@/api/etagCache";
 import BlogDetailPage from "@/components/pagecomponents/BlogDetailPage";
 import LanguageCodesSeed from "@/app/LanguageCodesSeed";
@@ -9,6 +8,7 @@ import { extractJSONFromMarkup } from "@/utils/helperFunction";
 import { canonicalUrl, hreflangAlternates } from "@/utils/canonicalUrl";
 import { getLanguagesCached } from "@/api/languageResolver";
 import { buildPageMetadata } from "@/utils/buildMetadata";
+import { sanitizeHtml } from "@/utils/sanitizeHtml";
 
 type Params = Promise<{ lang: string; slug: string }>;
 
@@ -20,6 +20,7 @@ type BlogSeoResult =
       metaDescription: string;
       metaKeywords: string;
       markUpSchema: string;
+      descriptionHtml: string;
       ogImage: string | null;
       favicon: string | null;
       langCodes: string[];
@@ -68,6 +69,8 @@ const loadBlogData = cache(async (slug: string, lang: string): Promise<BlogSeoRe
       metaDescription,
       metaKeywords,
       markUpSchema,
+      // Sanitized on the server so sanitize-html never ships to the browser.
+      descriptionHtml: sanitizeHtml(blog?.translations?.description || blog?.description).__html,
       ogImage,
       favicon,
       langCodes,
@@ -134,7 +137,7 @@ export default async function BlogDetailRoute({
           dangerouslySetInnerHTML={{ __html: result.markUpSchema }}
         />
       )}
-      <BlogDetailPage />
+      <BlogDetailPage descriptionHtml={result.descriptionHtml} />
     </div>
   );
 }

@@ -1,10 +1,10 @@
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
 import useIsHydrated from "./useIsHydrated";
 
 /** Hydration-safe text direction ("RTL" / "LTR") for active language. */
 const useDir = (): string | undefined => {
-  const type = useSelector(
-    (state: any) => state.Language?.selectedLanguage?.type,
+  const type = useAppSelector(
+    (state) => state.Language?.selectedLanguage?.type,
   );
   const hydrated = useIsHydrated();
   return hydrated ? type : undefined;

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { use, useEffect, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useEffect, useState } from "react";
 import { t } from "@/utils/translation";
 import { FiPlusCircle } from "react-icons/fi";
 import AddressCard from "../cards/AddressCard";
@@ -12,7 +13,6 @@ const NewAddressModal = dynamic(
   },
 );
 import * as api from "@/api/apiRoutes";
-import { useSelector, useDispatch } from "react-redux";
 import { setAllAddresses } from "@/redux/slices/addressSlice";
 import CardSkeleton from "../skeleton/CardSkeleton";
 import { GoPlusCircle } from "react-icons/go";
@@ -20,9 +20,9 @@ import ThemedSvg from "@/components/notfound/ThemedSvg";
 import NoAddressImage from "@/assets/empty-state/no-address.svg";
 
 const Address = () => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
-  const addresses = useSelector((state: any) => state.Addresses);
+  const addresses = useAppSelector((state) => state.Addresses);
   const [showAddAddres, setShowAddAddres] = useState(false);
   const [isAddressSelected, setIsAddressSelected] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,7 +44,6 @@ const Address = () => {
     } catch (error) {
       setLoading(false);
       setIsError(true);
-      console.log("Error", error);
     }
   };
 

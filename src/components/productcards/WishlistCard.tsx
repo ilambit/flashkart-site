@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useState } from "react";
 import Link from "next/link";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { BiTrash } from "react-icons/bi";
 import { AiFillStar } from "react-icons/ai";
@@ -36,9 +36,9 @@ const WishlistCard = ({
   handleFetchLikedProducts,
 }: WishlistCardProps) => {
   const zoneHref = useZoneHref();
-  const dispatch = useDispatch();
-  const city = useSelector((state: any) => state.City.city);
-  const cartProducts = useSelector((state: any) => state.Cart.cartProducts);
+  const dispatch = useAppDispatch();
+  const city = useAppSelector((state) => state.City.city);
+  const cartProducts = useAppSelector((state) => state.Cart.cartProducts);
   const { guard: guardClosed, closedProps } = useStoreClosed();
   const [moving, setMoving] = useState(false);
   // Format currency with zone defaults
@@ -56,10 +56,8 @@ const WishlistCard = ({
         setTotal((prevTotal) => prevTotal - 1);
         await handleFetchLikedProducts();
       } else {
-        console.log(response.message);
       }
     } catch (error) {
-      console.log("Error", error);
     }
   };
 
@@ -105,7 +103,6 @@ const WishlistCard = ({
       }
       toast.success(t("moved_to_bag") || "Moved to bag");
     } catch (error) {
-      console.log("Error", error);
       toast.error(t("something_went_wrong"));
     } finally {
       setMoving(false);

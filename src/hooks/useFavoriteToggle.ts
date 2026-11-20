@@ -1,13 +1,14 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import * as api from "@/api/apiRoutes";
-import { t } from "@/utils/translation";
+import { requestLogin } from "@/utils/loginEvents";
 import {
   setFavoriteProductIds,
   syncFavoriteId,
 } from "@/redux/slices/FavoriteSlice";
 import useIsHydrated from "./useIsHydrated";
+import { haptic } from "@/utils/haptics";
 
 /** Optimistic and debounced wishlist toggle hook for a single product. */
 export interface UseFavoriteToggleOptions {
@@ -37,10 +38,10 @@ export function useFavoriteToggle({
   delay = 500,
   serverLiked,
 }: UseFavoriteToggleOptions): UseFavoriteToggleResult {
-  const dispatch = useDispatch();
-  const jwtToken = useSelector((state: any) => state.User.jwtToken);
-  const favoriteProducts = useSelector(
-    (state: any) => state.Favorite.favouriteProductIds,
+  const dispatch = useAppDispatch();
+  const jwtToken = useAppSelector((state) => state.User.jwtToken);
+  const favoriteProducts = useAppSelector(
+    (state) => state.Favorite.favouriteProductIds,
   );
   // Hydration guard for favourite product IDs.
   const isHydrated = useIsHydrated();
@@ -132,7 +133,6 @@ export function useFavoriteToggle({
           toast.error(response?.message);
         }
       } catch (error) {
-        console.log("Error", error);
         applyIds(base);
       } finally {
         if (mountedRef.current) setPending(false);
@@ -146,10 +146,8 @@ export function useFavoriteToggle({
       e?.stopPropagation?.();
 
       if (!jwtToken) {
-        // Show login required toast for guest user.
-        toast.error(t("required_login_message_for_wishlist"), {
-          toastId: "required_login_message_for_wishlist",
-        });
+        // Guests get the login modal instead of a dead-end toast.
+        requestLogin();
         return;
       }
 
@@ -158,6 +156,7 @@ export function useFavoriteToggle({
       toggledThisSession.add(String(productId));
 
       const next = !liveRef.current;
+      haptic();
       liveRef.current = next;
       targetRef.current = next;
       applyIds(next);

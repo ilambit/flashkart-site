@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import * as api from "@/api/apiRoutes";
 import { t } from "@/utils/translation";
@@ -69,10 +69,10 @@ const useCartLine = (product: any, options: UseCartLineOptions = {}) => {
     useStockHelpers = false,
   } = options;
 
-  const dispatch = useDispatch();
-  const cart = useSelector((state: any) => state.Cart);
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const city = useSelector((state: any) => state.City.city);
+  const dispatch = useAppDispatch();
+  const cart = useAppSelector((state) => state.Cart);
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const city = useAppSelector((state) => state.City.city);
   const hydrated = useIsHydrated();
   const { currencyCode } = useCurrency();
 
@@ -177,7 +177,6 @@ const useCartLine = (product: any, options: UseCartLineOptions = {}) => {
         throw new Error(response?.message || "addToCart failed");
       }
     } catch (error) {
-      console.log("error", error);
       throw error;
     }
   };
@@ -222,7 +221,6 @@ const useCartLine = (product: any, options: UseCartLineOptions = {}) => {
         throw new Error(response?.message || "removeFromCart failed");
       }
     } catch (error) {
-      console.log("error", error);
       if (rethrowRemoveError) throw error;
     }
   };

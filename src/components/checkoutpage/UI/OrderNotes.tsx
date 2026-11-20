@@ -1,14 +1,14 @@
 "use client";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { FiPlus } from "react-icons/fi";
 import { t } from "@/utils/translation";
 import { setOrderNote } from "@/redux/slices/checkoutSlice";
 
 // Optional delivery instruction attached to the order.
 const OrderNotes = () => {
-  const dispatch = useDispatch();
-  const orderNote = useSelector((state: any) => state.Checkout.orderNote);
+  const dispatch = useAppDispatch();
+  const orderNote = useAppSelector((state) => state.Checkout.orderNote);
   const [open, setOpen] = useState(false);
 
   return (

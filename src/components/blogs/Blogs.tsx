@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import BlogCard from "./BlogCard";
 import BlogsCategories from "./BlogsCategories";
 import RecentBlogs from "./RecentBlogs";
@@ -11,96 +12,59 @@ import PopularBlogTags from "./PopularBlogTags";
 import ThemedSvg from "@/components/notfound/ThemedSvg";
 import NoBlogImage from "@/assets/empty-state/no-blog.svg";
 
+const BLOG_LIMIT = 10;
+const FIVE_MIN = 1000 * 60 * 5;
+
 const Blogs = () => {
-  // Raw API JSON — blog/category/tag shapes have no shared types yet.
-  const [blogs, setBlogs] = useState<any[]>([]);
-  const [blogsCategories, setBlogsCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [selectedTag, setSelectedTag] = useState<any>(null);
-  const [mostViewedBlogs, setMostViewedBlogs] = useState<any[]>([]);
-  const [offset, setOffset] = useState(0);
-  const [totalBlogs, setTotalBlogs] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [blogsLoading, setBlogsLoading] = useState(false);
-  const [blogsError, setBlogsError] = useState(false);
-  const [tags, setTags] = useState<any[]>([]);
   const topRef = React.useRef<HTMLDivElement>(null);
 
-  const BLOG_LIMIT = 10;
-
-  const handleTagFetch = async () => {
-    try {
-      const response = await api.getTags();
-      setTags(response?.data);
-    } catch (error) {
-      console.log("error", error);
-    }
-  };
-
-  const handleFetchBlogs = async (customOffset = 0, isFetchMore = false) => {
-    setBlogsLoading(true);
-    if (!isFetchMore) {
-      setBlogsError(false);
-    }
-    try {
-      const res = await api.getBlogs({
-        offset: customOffset,
+  // Sidebar data is filter-independent, so cache it across visits.
+  const categoriesQuery = useQuery({
+    queryKey: ["blogs-categories"],
+    queryFn: () => api.getBlogsCategories({}).then((res: any) => res?.data || []),
+    staleTime: FIVE_MIN,
+  });
+  const mostViewedQuery = useQuery({
+    queryKey: ["blogs-most-viewed"],
+    queryFn: () => api.getMostViewedBlogs({ limit: 5 }).then((res: any) => res?.data || []),
+    staleTime: FIVE_MIN,
+  });
+  const tagsQuery = useQuery({
+    queryKey: ["blogs-tags"],
+    queryFn: () => api.getTags().then((res: any) => res?.data || []),
+    staleTime: FIVE_MIN,
+  });
+  const blogsQuery = useInfiniteQuery({
+    queryKey: ["blogs-list", selectedCategory, selectedTag],
+    queryFn: ({ pageParam }) =>
+      api.getBlogs({
+        offset: pageParam,
         limit: BLOG_LIMIT,
         categoryId: selectedCategory,
         tag_id: selectedTag,
-      });
-      if (isFetchMore) {
-        setBlogs((prev) => [...prev, ...res.data]);
-      } else {
-        setBlogs(res?.data);
-      }
-      setOffset((prev) => prev + BLOG_LIMIT);
-      setBlogsLoading(false);
-      setTotalBlogs(res?.total);
-    } catch (error) {
-      setBlogsLoading(false);
-      if (!isFetchMore) {
-        setBlogsError(true);
-      }
-      console.log("error", error);
-    }
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (_last: any, pages: any[]) => pages.length * BLOG_LIMIT,
+    staleTime: FIVE_MIN,
+  });
+
+  const blogsCategories: any[] = categoriesQuery.data ?? [];
+  const mostViewedBlogs: any[] = mostViewedQuery.data ?? [];
+  const tags: any[] = tagsQuery.data ?? [];
+  const blogs: any[] = blogsQuery.data?.pages.flatMap((p: any) => p?.data ?? []) ?? [];
+  const totalBlogs: number | null = blogsQuery.data?.pages[0]?.total ?? null;
+
+  // One loading flag for the sidebar queries — avoids stacked skeletons.
+  const loading =
+    categoriesQuery.isPending || mostViewedQuery.isPending || tagsQuery.isPending;
+  const blogsLoading = blogsQuery.isPending;
+  const blogsError = blogsQuery.isError;
+
+  const handleFetchBlogs = () => {
+    blogsQuery.refetch();
   };
-
-  const handleFetchBlogsCategories = async () => {
-    try {
-      const res = await api.getBlogsCategories({});
-      setBlogsCategories(res?.data);
-    } catch (error) {
-      console.log("error", error);
-    }
-  };
-
-  const getMostViewedBlogs = async () => {
-    try {
-      const response = await api.getMostViewedBlogs({ limit: 5 });
-      setMostViewedBlogs(response.data);
-    } catch (error) {
-      console.log("error", error);
-    }
-  };
-
-  useEffect(() => {
-    // One loading flag for all three fetches — avoids stacked skeletons.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    Promise.allSettled([
-      handleFetchBlogsCategories(),
-      getMostViewedBlogs(),
-      handleTagFetch(),
-    ]).then(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOffset(0);
-    handleFetchBlogs(0, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategory, selectedTag]);
 
   useEffect(() => {
     if (!blogsLoading && topRef.current) {
@@ -133,7 +97,7 @@ const Blogs = () => {
                 </h2>
                 <button
                   type="button"
-                  onClick={() => handleFetchBlogs(0, false)}
+                  onClick={handleFetchBlogs}
                   className="mt-3 primaryBackColor text-white text-sm font-semibold px-6 py-2.5 rounded-lg"
                 >
                   {t("retry") || t("try_again") || "Retry"}
@@ -185,7 +149,7 @@ const Blogs = () => {
                 <button
                   type="button"
                   className="bg-[#29363f] rounded-md text-white text-base font-medium gap-1 p-1.5 px-3"
-                  onClick={() => handleFetchBlogs(offset, true)}
+                  onClick={() => blogsQuery.fetchNextPage()}
                 >
                   {t("load_more")}
                 </button>

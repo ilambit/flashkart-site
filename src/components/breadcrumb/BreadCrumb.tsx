@@ -1,11 +1,11 @@
 "use client";
 
+import { useAppDispatch } from "@/redux/hooks";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useDispatch } from "react-redux";
 import { t } from "@/utils/translation";
-import { Home, ChevronRight } from "lucide-react";
+import { FiHome, FiChevronRight } from "react-icons/fi";
 import useLanguages from "@/hooks/useLanguages";
 import useZoneHref from "@/hooks/useZoneHref";
 import { parseZonePath } from "@/utils/zoneUrl";
@@ -33,7 +33,7 @@ const BreadCrumb = ({ title, categoryId, categorySlug }: BreadCrumbProps) => {
   const router = useRouter();
   const { run: runNavClick } = useNavClick();
   const pathname = usePathname();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { parseLangPath } = useLanguages();
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
@@ -108,7 +108,6 @@ const BreadCrumb = ({ title, categoryId, categorySlug }: BreadCrumbProps) => {
       orders: t("orders"),
       wishlist: t("wishlist"),
       address: t("address"),
-      subscription: t("subscription"),
       transaction: t("transaction"),
       notifications: t("notifications"),
       "notification-setting": t("notification-setting"),
@@ -147,7 +146,7 @@ const BreadCrumb = ({ title, categoryId, categorySlug }: BreadCrumbProps) => {
                 aria-label={t("home")}
                 className="flex items-center gap-1.5 capitalize transition-colors hover:primaryColor breadCrumbTrailLink"
               >
-                <Home size={15} className="shrink-0" />
+                <FiHome size={15} className="shrink-0" />
                 {t("home")}
               </Link>
             </li>
@@ -164,7 +163,7 @@ const BreadCrumb = ({ title, categoryId, categorySlug }: BreadCrumbProps) => {
                         "hidden shrink-0 sm:flex"
                   }`}
                 >
-                  <ChevronRight
+                  <FiChevronRight
                     size={15}
                     className="mx-1.5 shrink-0 opacity-40 rtl:rotate-180"
                     aria-hidden="true"

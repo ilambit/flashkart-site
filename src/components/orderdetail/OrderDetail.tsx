@@ -62,10 +62,9 @@ const OrderDetail = () => {
       if (response?.status == 1) {
         setOrderDetail(response.data[0]);
       } else {
-        console.log("Error", response);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[OrderDetail]", error);
     } finally {
       setLoading(false);
     }
@@ -224,7 +223,10 @@ const OrderDetail = () => {
                       {t("order_note_title")}
                     </SectionTitle>
                     <div className="p-4">
-                      <p className="text-sm leading-relaxed">
+                      {/* Notes arrive as free text: keep the author's line
+                          breaks, and break mid-word so one long unspaced run
+                          cannot overflow the card's clipped box. */}
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
                         {orderDetail?.order_note}
                       </p>
                     </div>

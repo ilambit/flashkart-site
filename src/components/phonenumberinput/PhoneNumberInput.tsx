@@ -79,7 +79,6 @@ const PhoneNumberInput = ({
           onCountryReady?.(match);
         }
       } catch (error: any) {
-        console.log("Error fetching countries", error);
       }
     };
     fetchCountries();

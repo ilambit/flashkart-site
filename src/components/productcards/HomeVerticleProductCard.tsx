@@ -1,22 +1,18 @@
+import { useAppSelector } from "@/redux/hooks";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { FaStar, FaMinus, FaPlus} from "react-icons/fa";
 import Link from "next/link";
 import { useProductStoryClick } from "../productstory/ProductStoryContext";
 import { t } from "@/utils/translation";
-import ProductDetailModal from "../productdetailmodal/ProductDetailModal";
-import { useSelector } from "react-redux";
 import { formatCurrency, isVideoUrl} from "@/utils/helperFunction";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import MobileCardGallery from "./MobileCardGallery";
+import HoverImageStack from "./HoverImageStack";
 import FewLeftBadge from "./FewLeftBadge";
 import TimeIcon from "./TimeIcon";
 import { GoEye } from "react-icons/go";
 import {
   MdAddShoppingCart} from "react-icons/md";
-import VariantsModal from "../variantsmodal/VariantsModal";
-import AddonsModal from "../addonsmodal/AddonsModal";
-import AddonRepeatModal from "../addonsmodal/AddonRepeatModal";
-import AddonLinesModal from "../addonsmodal/AddonLinesModal";
 import {
   isVariantOutOfStock} from "@/utils/helperFunction";
 import useZoneHref from "@/hooks/useZoneHref";
@@ -32,6 +28,13 @@ import { ZigzagEdgeIcon } from "@/components/icons";
 import ProductTypeTag from "../productdetail/ProductTypeTag";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
 
+import dynamic from "next/dynamic";
+import MountOnOpen from "./MountOnOpen";
+const VariantsModal = dynamic(() => import("../variantsmodal/VariantsModal"), { ssr: false });
+const AddonsModal = dynamic(() => import("../addonsmodal/AddonsModal"), { ssr: false });
+const AddonRepeatModal = dynamic(() => import("../addonsmodal/AddonRepeatModal"), { ssr: false });
+const AddonLinesModal = dynamic(() => import("../addonsmodal/AddonLinesModal"), { ssr: false });
+const ProductDetailModal = dynamic(() => import("../productdetailmodal/ProductDetailModal"), { ssr: false });
 interface HomeVerticleProductCardProps {
   product: any;
   largeImage?: boolean;
@@ -52,8 +55,8 @@ const HomeVerticleProductCard = ({
   // Format currency with zone defaults
   const { currency, decimals } = useCurrency(product);
   const money = (val: number) => formatCurrency(val, currency, decimals, true);
-  const city = useSelector((state: any) => state.City.city);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const city = useAppSelector((state) => state.City.city);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
 
   // Quick delivery label gated on hydration
   const hydrated = useIsHydrated();
@@ -63,10 +66,7 @@ const HomeVerticleProductCard = ({
   // Initial variant state
   const {
     cart,
-    setting,
     selectedVariant,
-    setSelectedVariant,
-    isProductAlreadyAdded,
     addedQuantity,
     maxQty,
     guestMaxQty,
@@ -131,7 +131,11 @@ const HomeVerticleProductCard = ({
   const [hoverImgIdx, setHoverImgIdx] = useState(0);
   const hoverTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Drives the gallery's mount: hovering is the intent to see every frame.
+  const [hoverActive, setHoverActive] = useState(false);
+
   const startHoverSlide = () => {
+    setHoverActive(true);
     if (galleryImages.length <= 1) return;
     if (hoverTimerRef.current) return;
     hoverTimerRef.current = setInterval(() => {
@@ -144,6 +148,7 @@ const HomeVerticleProductCard = ({
       clearInterval(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
+    setHoverActive(false);
     setHoverImgIdx(0);
   };
 
@@ -175,7 +180,6 @@ const HomeVerticleProductCard = ({
   // Favorite toggle hook
   const {
     liked,
-    pending: likePending,
     toggle: handleProductLikes,
     canToggle: canToggleLike,
   } = useFavoriteToggle({
@@ -395,19 +399,14 @@ const HomeVerticleProductCard = ({
               <>
               {/* Hover slideshow cross-fade */}
               <div className="max-md:hidden relative h-full w-full transition-transform duration-300 ease-out group-hover:scale-110">
-                {galleryImages.map((imgSrc, idx) => (
-                  <ImageWithPlaceholder
-                    key={idx}
-                    className={`absolute inset-0 object-contain h-full w-full p-1.5 md:p-2.5 max-md:p-0 max-md:pb-7 transition-opacity duration-700 ease-in-out ${
-                      idx === hoverImgIdx ? "opacity-100" : "opacity-0"
-                    } ${isProductAvailabel ? "md:grayscale" : storeClosed ? "grayscale" : ""}`}
-                    alt={product?.translations?.name ?? product?.name}
-                    src={imgSrc}
-                    width={300}
-                    height={300}
-                    priority={idx === 0}
-                  />
-                ))}
+                <HoverImageStack
+                  hovered={hoverActive}
+                  images={galleryImages}
+                  activeIdx={hoverImgIdx}
+                  alt={product?.translations?.name ?? product?.name}
+                  sizes="(max-width: 768px) 50vw, 240px"
+                  imgClassName={`object-contain h-full w-full p-1.5 md:p-2.5 max-md:p-0 max-md:pb-7 ${isProductAvailabel ? "md:grayscale" : storeClosed ? "grayscale" : ""}`}
+                />
               </div>
               {/* Mobile has no hover slideshow — show the first image */}
               <ImageWithPlaceholder
@@ -609,7 +608,7 @@ const HomeVerticleProductCard = ({
             type="button"
             onClick={guardClosed((e) => handleShowVariantModal(e, product))}
             {...closedProps}
-            className={`flex h-8 md:h-9 w-full md:w-auto md:min-w-[92px] shrink-0 flex-col items-center justify-center rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 px-2 text-[13px] md:text-[14px] font-semibold whitespace-nowrap hover:primaryLightBack transition ${mobileActionCls} max-md:h-7 max-md:justify-between max-md:overflow-hidden max-md:p-0 max-md:-mt-[30px] ${closedProps.className ?? ""}`}
+            className={`flex h-8 md:h-9 w-full md:w-auto md:min-w-[92px] shrink-0 flex-col items-center justify-center rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 px-2 text-[13px] md:text-[14px] font-semibold whitespace-nowrap hover:primaryLightBack transition ${mobileActionCls} max-md:h-auto max-md:justify-between max-md:overflow-hidden max-md:p-0 max-md:-mt-[30px] ${closedProps.className ?? ""}`}
           >
             <span className="flex items-center gap-1 leading-none max-md:w-full max-md:min-h-0 max-md:flex-1 max-md:justify-center max-md:text-[11px] max-md:font-semibold max-md:tracking-wide max-md:uppercase">
               <MdAddShoppingCart size={14} className="shrink-0 max-md:hidden" />
@@ -668,7 +667,7 @@ const HomeVerticleProductCard = ({
             }}
             onClick={guardClosed((e) => handleIntialAddToCart(e))}
             {...closedProps}
-            className={`flex h-8 md:h-9 w-full md:w-auto md:min-w-[92px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 px-2 text-[13px] md:text-[14px] font-semibold whitespace-nowrap hover:primaryLightBack transition ${mobileActionCls} max-md:-mt-[30px] max-md:h-7 max-md:text-[11px] max-md:font-semibold max-md:tracking-wide max-md:uppercase ${hasAddons ? "max-md:justify-between max-md:p-0" : ""} ${closedProps.className ?? ""}`}
+            className={`flex h-8 md:h-9 w-full md:w-auto md:min-w-[92px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 px-2 text-[13px] md:text-[14px] font-semibold whitespace-nowrap hover:primaryLightBack transition ${mobileActionCls} max-md:-mt-[30px] max-md:text-[11px] max-md:font-semibold max-md:tracking-wide max-md:uppercase ${hasAddons ? "max-md:h-auto max-md:justify-between max-md:overflow-hidden max-md:p-0" : "max-md:h-7"} ${closedProps.className ?? ""}`}
           >
             <span className="flex items-center justify-center gap-1 leading-none max-md:w-full max-md:min-h-0 max-md:flex-1">
               <MdAddShoppingCart size={14} className="shrink-0 max-md:hidden" />
@@ -867,41 +866,51 @@ const HomeVerticleProductCard = ({
         </>
       )}
 
-      <ProductDetailModal
-        product={product}
-        showDetailModal={showProductDetail}
-        setShowDetailModal={setShowProductDetail}
-      />
-      <VariantsModal
-        product={product}
-        showVariants={showVariants}
-        setShowVariants={setShowVariants}
-      />
-      <AddonsModal
-        product={product}
-        showAddons={showAddons}
-        setShowAddons={setShowAddons}
-        variant={selectedVariant}
-      />
-      <AddonRepeatModal
-        open={showAddonRepeat}
-        setOpen={setShowAddonRepeat}
-        product={product}
-        lastLine={lastAddonLine}
-        onRepeat={repeatLastAddonLine}
-        onAddNew={openAddonSheetAfterClose}
-      />
-      <AddonLinesModal
-        open={showAddonLines}
-        setOpen={setShowAddonLines}
-        product={product}
-        lines={addonLines}
-        onRemoveLine={removeAddonLine}
-        onRepeatLine={repeatAddonLine}
-        onAddNew={openAddonSheetAfterClose}
-      />
+      <MountOnOpen open={showProductDetail}>
+        <ProductDetailModal
+          product={product}
+          showDetailModal={showProductDetail}
+          setShowDetailModal={setShowProductDetail}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showVariants}>
+        <VariantsModal
+          product={product}
+          showVariants={showVariants}
+          setShowVariants={setShowVariants}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddons}>
+        <AddonsModal
+          product={product}
+          showAddons={showAddons}
+          setShowAddons={setShowAddons}
+          variant={selectedVariant}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddonRepeat}>
+        <AddonRepeatModal
+          open={showAddonRepeat}
+          setOpen={setShowAddonRepeat}
+          product={product}
+          lastLine={lastAddonLine}
+          onRepeat={repeatLastAddonLine}
+          onAddNew={openAddonSheetAfterClose}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddonLines}>
+        <AddonLinesModal
+          open={showAddonLines}
+          setOpen={setShowAddonLines}
+          product={product}
+          lines={addonLines}
+          onRemoveLine={removeAddonLine}
+          onRepeatLine={repeatAddonLine}
+          onAddNew={openAddonSheetAfterClose}
+        />
+      </MountOnOpen>
     </>
   );
 };
 
-export default HomeVerticleProductCard;
+export default React.memo(HomeVerticleProductCard);

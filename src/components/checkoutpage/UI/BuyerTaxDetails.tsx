@@ -1,6 +1,6 @@
 "use client";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { FiChevronDown, FiChevronRight } from "react-icons/fi";
 import { RiBuilding2Line } from "react-icons/ri";
 import { Input } from "@/components/ui/input";
@@ -22,10 +22,10 @@ interface BuyerTaxDetailsProps {
 // order note. Never saved to the address book — the same flat may order for a
 // company one week and a person the next.
 const BuyerTaxDetails = ({ label, validate, className = "" }: BuyerTaxDetailsProps) => {
-  const dispatch = useDispatch();
-  const taxNumber = useSelector((state: any) => state.Checkout.buyerTaxNumber);
-  const businessName = useSelector(
-    (state: any) => state.Checkout.buyerBusinessName,
+  const dispatch = useAppDispatch();
+  const taxNumber = useAppSelector((state) => state.Checkout.buyerTaxNumber);
+  const businessName = useAppSelector(
+    (state) => state.Checkout.buyerBusinessName,
   );
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);

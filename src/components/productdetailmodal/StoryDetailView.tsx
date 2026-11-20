@@ -2,7 +2,6 @@
 
 import React from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import { FaStar } from "react-icons/fa";
 import { FiChevronLeft, FiChevronRight, FiChevronUp, FiMinus, FiPlus } from "react-icons/fi";
 import { LuPill, LuShare2 } from "react-icons/lu";

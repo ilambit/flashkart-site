@@ -1,7 +1,6 @@
+import { useAppDispatch } from "@/redux/hooks";
 import { setProductBySearch } from '@/redux/slices/productFilterSlice'
 import Link from 'next/link'
-import React from 'react'
-import { useDispatch } from 'react-redux'
 import ImageWithPlaceholder from '../image-with-placeholder/ImageWithPlaceholder'
 import useZoneHref from "@/hooks/useZoneHref";
 import useCurrency from "@/hooks/useCurrency";
@@ -37,7 +36,7 @@ const HighlightText = ({ text, query }: { text: string; query?: string }) => {
 
 const SearchProductCard = ({ product, onResultClick, highlight }: SearchProductCardProps) => {
   const zoneHref = useZoneHref();
-    const dispatch = useDispatch()
+    const dispatch = useAppDispatch()
     const { currency, decimals } = useCurrency();
 
     const handleSearchProductClick = () => {

@@ -1,6 +1,5 @@
 import { t } from "@/utils/translation";
 import { formatCurrency } from "@/utils/helperFunction";
-import React from "react";
 import { LuGift, LuBadgeCheck, LuClock3 } from "react-icons/lu";
 import { RiWallet3Line, RiBankCardLine, RiRefund2Line } from "react-icons/ri";
 import { FiInfo } from "react-icons/fi";
@@ -367,12 +366,9 @@ const FinalCheckoutSummary = ({ orderDetail }: FinalCheckoutSummaryProps) => {
                   {t("refund_amount") || "Refund Amount"}{" "}
                   {money(orderDetail?.refund_amount)}
                 </p>
-                {/* Wallet-paid refunds to wallet; else to original source. */}
+                {/* Refunds always credit the wallet, never the source. */}
                 <p className="mt-0.5 text-[13px] leading-snug text-blue-600/70 dark:text-blue-400/70">
-                  {walletUsed
-                    ? t("refund_credited_to_wallet") || "Refunded to your wallet"
-                    : t("refund_processed_to_source") ||
-                      "Refunded to your original payment method"}
+                  {t("refund_credited_to_wallet") || "Refunded to your wallet"}
                 </p>
               </div>
             </div>

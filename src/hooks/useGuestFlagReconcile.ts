@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { setIsGuest } from "@/redux/slices/cartSlice";
 
 // Cart.isGuest and User.jwtToken live in two separate persisted keys
@@ -9,9 +9,9 @@ import { setIsGuest } from "@/redux/slices/cartSlice";
 // recover it because it bails when there is no token. Re-derive the flag from
 // the token once the store has rehydrated.
 const useGuestFlagReconcile = () => {
-  const dispatch = useDispatch();
-  const jwtToken = useSelector((state: any) => state?.User?.jwtToken);
-  const isGuest = useSelector((state: any) => state?.Cart?.isGuest);
+  const dispatch = useAppDispatch();
+  const jwtToken = useAppSelector((state) => state?.User?.jwtToken);
+  const isGuest = useAppSelector((state) => state?.Cart?.isGuest);
 
   useEffect(() => {
     const shouldBeGuest = !jwtToken;

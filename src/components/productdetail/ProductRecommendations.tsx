@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import dynamic from "next/dynamic";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation } from "swiper/modules";
@@ -94,12 +94,12 @@ interface ProductRecommendationsProps {
 }
 
 const ProductRecommendations = ({ productId }: ProductRecommendationsProps) => {
-  const city = useSelector((state: any) => state.City.city);
-  const defaultCity = useSelector(
-    (state: any) => state.Setting?.setting?.default_city
+  const city = useAppSelector((state) => state.City.city);
+  const defaultCity = useAppSelector(
+    (state) => state.Setting?.setting?.default_city
   );
   // Re-fetch when shop mode changes
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
   const [crossSell, setCrossSell] = useState<any[]>([]);
   const [upSell, setUpSell] = useState<any[]>([]);
 
@@ -140,7 +140,6 @@ const ProductRecommendations = ({ productId }: ProductRecommendationsProps) => {
           setUpSell([]);
         }
       } catch (error) {
-        console.log("recommendations error", error);
         if (!cancelled) {
           setCrossSell([]);
           setUpSell([]);

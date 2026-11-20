@@ -1,7 +1,7 @@
 "use client";
 
 import { t } from "@/utils/translation";
-import React, { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import TransactionCard from "./TransactionCard";
 import * as api from "@/api/apiRoutes";
 import CardSkeleton from "@/components/skeleton/CardSkeleton";
@@ -9,6 +9,9 @@ import NoTransactionImage from "@/assets/empty-state/no-transaction.svg";
 import NotFound from "@/components/notfound/NotFound";
 import { LuReceipt } from "react-icons/lu";
 import useInViewFetch from "@/hooks/useInViewFetch";
+import TransactionFilterTabs from "./TransactionFilterTabs";
+
+const FILTERS = ["success", "failed"];
 
 const TransactionHistory = () => {
   const [transaction, setTransaction] = useState<any[]>([]);
@@ -17,6 +20,9 @@ const TransactionHistory = () => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [filter, setFilter] = useState("");
+  // Latest request id; stale responses from a previous filter are dropped
+  const reqIdRef = useRef(0);
 
   const transactionPerPage = 9;
   // Scroll-triggered load-more can fire the instant the page mounts (page 1
@@ -26,8 +32,13 @@ const TransactionHistory = () => {
   // skeleton stays up guarantees at least one visible frame of it.
   const MIN_LOAD_MORE_MS = 500;
 
-  const handleFetchTransactions = async (isLoadMore = false, newOffset?: number) => {
+  const handleFetchTransactions = async (
+    isLoadMore = false,
+    newOffset?: number,
+    activeFilter = filter,
+  ) => {
     const startedAt = Date.now();
+    const reqId = ++reqIdRef.current;
     if (isLoadMore) {
       setLoadingMore(true);
     } else {
@@ -39,6 +50,7 @@ const TransactionHistory = () => {
         limit: transactionPerPage,
         offset: newOffset,
         type: "transactions",
+        filter: activeFilter,
       });
       if (isLoadMore) {
         const elapsed = Date.now() - startedAt;
@@ -46,6 +58,7 @@ const TransactionHistory = () => {
           await new Promise((r) => setTimeout(r, MIN_LOAD_MORE_MS - elapsed));
         }
       }
+      if (reqId !== reqIdRef.current) return;
       if (response.status == 1) {
         setTransaction((trnscn) =>
           isLoadMore ? [...trnscn, ...response.data] : response.data,
@@ -54,23 +67,37 @@ const TransactionHistory = () => {
         setLoading(false);
         setLoadingMore(false);
       } else {
+        if (!isLoadMore) {
+          setTransaction([]);
+          setTotal(0);
+        }
         setLoading(false);
         setLoadingMore(false);
       }
     } catch (error: any) {
+      if (reqId !== reqIdRef.current) return;
       setLoading(false);
       setLoadingMore(false);
       if (!isLoadMore) {
         setIsError(true);
       }
-      console.log("Error", error);
     }
   };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount
     handleFetchTransactions(false, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run-once on mount only
   }, []);
+
+  const handleFilterChange = (value: string) => {
+    setFilter(value);
+    setOffset(0);
+    setTransaction([]);
+    setTotal(null);
+    setLoadingMore(false);
+    handleFetchTransactions(false, 0, value);
+  };
 
   const handleFetchMore = () => {
     const newOffset = offset + transactionPerPage;
@@ -91,7 +118,7 @@ const TransactionHistory = () => {
   return (
     <div>
       <div className="w-full cardBorder rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
-        <div className="flex items-center justify-between gap-3 p-4 md:p-5 border-b border-[color:var(--border-color)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 md:p-5 border-b border-[color:var(--border-color)]">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl primaryLightBack primaryColor">
               <LuReceipt size={18} />
@@ -107,17 +134,19 @@ const TransactionHistory = () => {
                                 )} */}
             </div>
           </div>
+          <TransactionFilterTabs
+            options={FILTERS}
+            active={filter}
+            onChange={handleFilterChange}
+          />
         </div>
         <div className="p-2 sm:p-3">
           <div className="grid grid-cols-12">
             {loading ? (
               Array?.from({ length: 6 })?.map((_, index) => {
                 return (
-                  <div
-                    className="col-span-12  md:col-span-6 lg:col-span-6 "
-                    key={index}
-                  >
-                    <CardSkeleton height={200} padding="p-4" key={index} />
+                  <div className="col-span-12 lg:col-span-6" key={index}>
+                    <CardSkeleton variant="transaction" />
                   </div>
                 );
               })
@@ -160,11 +189,8 @@ const TransactionHistory = () => {
                 visible as soon as the first page lands. */}
             {hasMore &&
               Array?.from({ length: loadingMore ? 6 : 2 })?.map((_, index) => (
-                <div
-                  className="col-span-12  md:col-span-6 lg:col-span-6"
-                  key={`m${index}`}
-                >
-                  <CardSkeleton height={200} padding="2px" />
+                <div className="col-span-12 lg:col-span-6" key={`m${index}`}>
+                  <CardSkeleton variant="transaction" />
                 </div>
               ))}
           </div>

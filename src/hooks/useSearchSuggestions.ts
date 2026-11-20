@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { usePathname } from "next/navigation";
 import * as api from "@/api/apiRoutes";
 import { setProductBySearch } from "@/redux/slices/productFilterSlice";
@@ -18,12 +18,12 @@ const fallbackTerms = (value: string): string[] => {
 
 // Debounced product search suggestions for the header's search field.
 const useSearchSuggestions = () => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const pathname = usePathname();
   const { setSearch: setUrlSearch } = useUrlProductFilters();
-  const cityLat = useSelector((state: any) => state.City.city?.latitude);
-  const cityLng = useSelector((state: any) => state.City.city?.longitude);
-  const filter = useSelector((state: any) => state.ProductFilter);
+  const cityLat = useAppSelector((state) => state.City.city?.latitude);
+  const cityLng = useAppSelector((state) => state.City.city?.longitude);
+  const filter = useAppSelector((state) => state.ProductFilter);
 
   const [searchText, setSearchText] = useState("");
   const [isSuggLoading, setIsSuggLoading] = useState(false);
@@ -33,14 +33,20 @@ const useSearchSuggestions = () => {
   const requestIdRef = useRef(0);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Seed search text from URL parameter
+  // Seed search text from URL parameter; clear it once the route drops the query
   useEffect(() => {
-    if (isProductsPath(pathname)) {
-      const q = new URLSearchParams(window.location.search).get("q");
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors the URL into the field
-      setSearchText(typeof q === "string" ? q : "");
+    const q = isProductsPath(pathname)
+      ? new URLSearchParams(window.location.search).get("q")
+      : null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors the URL into the field
+    setSearchText(typeof q === "string" ? q : "");
+    if (typeof q !== "string") {
+      requestIdRef.current++;
+      setCorrectedTerm(null);
+      setIsSuggLoading(false);
+      dispatch(setProductBySearch({ data: [] }));
     }
-  }, [pathname]);
+  }, [pathname, dispatch]);
 
   const fetchTerm = async (term: string) => {
     const response = await api.getProductByFilter({
@@ -81,7 +87,6 @@ const useSearchSuggestions = () => {
       if (requestId !== requestIdRef.current) return;
       setIsSuggLoading(false);
       setIsSuggError(true);
-      console.log("Error", error?.message);
     }
   };
 

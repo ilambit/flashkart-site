@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import * as api from "@/api/apiRoutes";
 import { setCartPromo } from "@/redux/slices/cartSlice";
@@ -44,9 +44,9 @@ const CouponStack = ({
 // Myntra-style coupon picker: code input + CHECK, then Available / Unlock
 // sections of checkbox rows. Shared by the cart drawer and cart page drawer.
 const CouponList = ({ coupons, loading = false, onApplied }: CouponListProps) => {
-  const dispatch = useDispatch();
-  const cart = useSelector((state: any) => state.Cart);
-  const city = useSelector((state: any) => state.City?.city);
+  const dispatch = useAppDispatch();
+  const cart = useAppSelector((state) => state.Cart);
+  const city = useAppSelector((state) => state.City?.city);
   const [code, setCode] = useState("");
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
@@ -75,7 +75,6 @@ const CouponList = ({ coupons, loading = false, onApplied }: CouponListProps) =>
         setError(response.message || t("invalid_coupon_code"));
       }
     } catch (err) {
-      console.log("Error", err);
       setError(t("something_went_wrong"));
     } finally {
       setChecking(false);

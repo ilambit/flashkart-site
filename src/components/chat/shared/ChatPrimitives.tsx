@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
   type ChangeEvent,
   type FormEvent,
   type RefObject,
@@ -309,15 +310,55 @@ interface DocChipProps {
   mine: boolean;
 }
 
+// Same-origin proxy URL: a cross-origin or _blank download opens a tab that
+// closes itself the instant the transfer starts, which reads as a full screen blink.
+const downloadHref = (src?: string, name?: string) => {
+  if (!src) return "#";
+  if (src.startsWith("blob:") || src.startsWith("data:")) return src;
+  const fileName = name || baseName(src) || "document";
+  return `/api/download?u=${encodeURIComponent(src)}&n=${encodeURIComponent(fileName)}`;
+};
+
+const saveBlob = (blob: Blob, fileName: string) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+// Proxy first, then a direct CORS fetch (static-export builds have no /api),
+// and only as a last resort a real tab.
+const handleDownload = async (
+  e: ReactMouseEvent<HTMLAnchorElement>,
+  src?: string,
+  name?: string,
+) => {
+  if (!src || src.startsWith("blob:") || src.startsWith("data:")) return;
+  e.preventDefault();
+  const fileName = name || baseName(src) || "document";
+  for (const url of [downloadHref(src, fileName), src]) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      saveBlob(await res.blob(), fileName);
+      return;
+    } catch {
+      // try the next source
+    }
+  }
+  window.open(src, "_blank", "noopener,noreferrer");
+};
+
 // ── Document chip (pdf / doc / non-media) ─────────────────────────────────
 const DocChip = ({ src, name, mine }: DocChipProps) => (
   <a
-    href={src}
-    target="_blank"
-    rel="noopener noreferrer"
-    download
+    href={downloadHref(src, name)}
+    download={name || baseName(src) || "document"}
+    onClick={(e) => handleDownload(e, src, name)}
     className={cn(
-      "flex items-center gap-2.5 min-w-[13rem] max-w-[17rem] rounded-2xl px-3 py-2.5 shadow-sm ring-1 transition",
+      "flex items-center gap-2.5 min-w-[13rem] max-w-[17rem] rounded-2xl px-3 py-2.5 shadow-sm ring-1 transition text-start",
       mine
         ? "primaryBackColor text-white ring-black/10 hover:brightness-95"
         : "bg-white dark:bg-zinc-800 ring-gray-100 dark:ring-white/10 hover:bg-gray-50 dark:hover:bg-zinc-700",

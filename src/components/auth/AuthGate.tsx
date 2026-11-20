@@ -1,15 +1,14 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
 import Loader from "@/components/loader/Loader";
 import useZoneHref from "@/hooks/useZoneHref";
 
 /**
  * Client-only route guard (no server-side session check).
  * - requireAuth: redirect to `redirectTo` unless user.jwtToken.
- * - requireSubscription: redirect unless user.user.is_subscription_plans.
  * - requireResetEligible: redirect to /profile unless email auth, or phone
  *   auth with phone_auth_password enabled.
  */
@@ -28,9 +27,9 @@ export default function AuthGate({
 }) {
   const zoneHref = useZoneHref();
   const router = useRouter();
-  const user = useSelector((state: any) => state.User);
-  const authType = useSelector((state: any) => state.User.authType);
-  const setting = useSelector((state: any) => state?.Setting?.setting);
+  const user = useAppSelector((state) => state.User);
+  const authType = useAppSelector((state) => state.User.authType);
+  const setting = useAppSelector((state) => state?.Setting?.setting);
   const [checked, setChecked] = useState(false);
   const [ok, setOk] = useState(false);
 
@@ -60,11 +59,11 @@ export default function AuthGate({
     setOk(true);
     setChecked(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authType, setting, requireAuth, requireSubscription, requireResetEligible, redirectTo]);
+  }, [user, authType, setting, requireAuth, requireResetEligible, redirectTo]);
 
   // Reset-password-only check renders nothing while checking (no loader flash).
   if (!checked) {
-    return requireResetEligible && !requireAuth && !requireSubscription ? null : (
+    return requireResetEligible && !requireAuth ? null : (
       <Loader screen="full" />
     );
   }

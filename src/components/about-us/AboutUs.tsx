@@ -1,16 +1,15 @@
-import React from "react";
 import BreadCrumb from "../breadcrumb/BreadCrumb";
-import { useSelector } from "react-redux";
 
-const AboutUs = () => {
-  const setting = useSelector((state: any) => state?.Setting?.setting);
+// Server component: about_us is loaded on the server (utils/cmsContent), so the
+// HTML is identical in SSR and hydration — Redux/localStorage only exists client-side.
+const AboutUs = ({ html = "" }: { html?: string }) => {
   return (
     <section>
       <div>
         <div>
           <BreadCrumb />
         </div>
-        {setting?.about_us !== "" && (
+        {html && (
           // No container/padding/flex wrapper here on purpose: this HTML is
           // authored as a self-contained, full-bleed page-builder layout —
           // each top-level <div style="background-color:...; padding:..."> IS
@@ -27,7 +26,7 @@ const AboutUs = () => {
             // stripping styles/tags the admin's own layout depended on. Must
             // stay a trusted-content-only field — never point this at
             // anything a customer can submit.
-            dangerouslySetInnerHTML={{ __html: setting?.about_us }}
+            dangerouslySetInnerHTML={{ __html: html }}
           />
         )}
       </div>

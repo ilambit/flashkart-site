@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import {
   startOrderChat,
   startOrderAdminChat,
@@ -49,10 +49,10 @@ export default function useDeliveryChat({
   mode = "delivery",
 }: UseDeliveryChatOptions = {}) {
   const isOrderAdmin = mode === "orderAdmin";
-  const user = useSelector((s: any) => s.User?.user);
+  const user = useAppSelector((s) => s.User?.user);
   const userId = user?.id;
   // Settings status to trigger realtime connection.
-  const settingStatus = useSelector((s: any) => s.Setting?.status);
+  const settingStatus = useAppSelector((s) => s.Setting?.status);
 
   const [conversation, setConversation] = useState<UiConversation | null>(null);
   // Seed initial agent details from order props.

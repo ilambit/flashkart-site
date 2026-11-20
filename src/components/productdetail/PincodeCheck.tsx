@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import { FiAlertCircle, FiInfo, FiMapPin, FiXCircle } from "react-icons/fi";
 import { FaTruckFast } from "react-icons/fa6";
 import * as api from "@/api/apiRoutes";
@@ -78,7 +78,7 @@ const PincodeCheck = ({
   onBlockChange,
   fallbackEta,
 }: PincodeCheckProps) => {
-  const city = useSelector((state: any) => state.City?.city);
+  const city = useAppSelector((state) => state.City?.city);
 
   const [pincode, setPincode] = useState("");
   const [editing, setEditing] = useState(true);
@@ -131,7 +131,6 @@ const PincodeCheck = ({
         showError(res?.message || t("something_went_wrong"));
       }
     } catch (err) {
-      console.log("Error", err);
       showError(t("something_went_wrong"));
     } finally {
       setLoading(false);

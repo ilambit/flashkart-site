@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useAppSelector } from "@/redux/hooks";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { t } from "@/utils/translation";
 import * as api from "@/api/apiRoutes";
@@ -8,10 +9,8 @@ import { formatCustomDate } from "@/lib/utils";
 import { formatCurrency } from "@/utils/helperFunction";
 import NoTransactionFound from "@/assets/empty-state/empty-wallet.svg";
 import NotFound from "@/components/notfound/NotFound";
-import { useSelector } from "react-redux";
 import { FiCreditCard, FiPlus } from "react-icons/fi";
 import { RiWallet3Line, RiMoneyDollarCircleLine } from "react-icons/ri";
-import { LuReceipt } from "react-icons/lu";
 import WalletBalanceModal from "./WalletBalanceModal";
 import RazorpayLogo from "@/assets/payment_methods_svgs/ic_razorpay.svg";
 import StripeLogo from "@/assets/payment_methods_svgs/ic_stripe.svg";
@@ -25,6 +24,9 @@ import MidtransLogo from "@/assets/payment_methods_svgs/Midtrans.svg";
 import PayuLogo from "@/assets/payment_methods_svgs/payu.png";
 import useCurrency from "@/hooks/useCurrency";
 import useInViewFetch from "@/hooks/useInViewFetch";
+import TransactionFilterTabs from "@/components/profiledashboard/transactions/TransactionFilterTabs";
+
+const WALLET_FILTERS = ["credit", "debit", "failed"];
 
 // Wallet transaction row's amount — a separate component so useCurrency (a
 // hook) can be called once per row instead of inside the parent's .map().
@@ -33,14 +35,16 @@ import useInViewFetch from "@/hooks/useInViewFetch";
 const WalletTransactionAmount = ({
   transaction,
   isCredit,
+  isSettled = true,
 }: {
   transaction: any;
   isCredit: boolean;
+  isSettled?: boolean;
 }) => {
   const { currency, decimals } = useCurrency(transaction);
   return (
     <>
-      {isCredit ? "+" : "-"}
+      {isSettled ? (isCredit ? "+" : "-") : ""}
       {formatWalletAmount(transaction?.amount, currency, decimals)}
     </>
   );
@@ -72,7 +76,7 @@ const PAYMENT_LOGOS: Record<string, any> = {
 };
 
 const WalletHistory = () => {
-  const user = useSelector((state: any) => state.User.user);
+  const user = useAppSelector((state) => state.User.user);
   // Wallet balance is a live/current figure, not tied to a past record — use
   // the current-zone currency (no historical override).
   const { currency: balanceCurrency, decimals: balanceDecimals } = useCurrency();
@@ -91,6 +95,9 @@ const WalletHistory = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [isError, setIsError] = useState(false);
   const didInitialFetch = useRef(false);
+  const [filter, setFilter] = useState("");
+  // Latest request id; stale responses from a previous filter are dropped
+  const reqIdRef = useRef(0);
 
   const transactionPerPage = 9;
 
@@ -101,8 +108,13 @@ const WalletHistory = () => {
   // skeleton stays up guarantees at least one visible frame of it.
   const MIN_LOAD_MORE_MS = 500;
 
-  const fetchWalletTransaction = async (isLoadMore = false, newOffset?: number) => {
+  const fetchWalletTransaction = async (
+    isLoadMore = false,
+    newOffset?: number,
+    activeFilter = filter,
+  ) => {
     const startedAt = Date.now();
+    const reqId = ++reqIdRef.current;
     if (isLoadMore) {
       setLoadingMore(true);
     } else {
@@ -114,6 +126,7 @@ const WalletHistory = () => {
         limit: transactionPerPage,
         offset: newOffset,
         type: "wallet",
+        filter: activeFilter,
       });
       if (isLoadMore) {
         const elapsed = Date.now() - startedAt;
@@ -121,6 +134,7 @@ const WalletHistory = () => {
           await new Promise((r) => setTimeout(r, MIN_LOAD_MORE_MS - elapsed));
         }
       }
+      if (reqId !== reqIdRef.current) return;
       if (response.status == 1) {
         setTransactions((trnscn) =>
           isLoadMore ? [...trnscn, ...response.data] : response.data,
@@ -135,12 +149,12 @@ const WalletHistory = () => {
         setLoadingMore(false);
       }
     } catch (error: any) {
+      if (reqId !== reqIdRef.current) return;
       setLoading(false);
       setLoadingMore(false);
       if (!isLoadMore) {
         setIsError(true);
       }
-      console.log("Error", error);
     }
   };
 
@@ -148,7 +162,17 @@ const WalletHistory = () => {
     if (didInitialFetch.current) return;
     didInitialFetch.current = true;
     fetchWalletTransaction(false, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run-once on mount only
   }, []);
+
+  const handleFilterChange = (value: string) => {
+    setFilter(value);
+    setOffset(0);
+    setTransactions([]);
+    setTotal(null);
+    setLoadingMore(false);
+    fetchWalletTransaction(false, 0, value);
+  };
 
   const handleFetchMore = async () => {
     const newOffset = offset + transactionPerPage;
@@ -185,15 +209,16 @@ const WalletHistory = () => {
             the screen is past sm, and the button overflowed the card. */}
         <div className="relative flex flex-col @md:flex-row @md:items-center @md:justify-between gap-6">
           {/* Balance */}
-          <div className="flex items-center gap-4">
-            <span className="shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/20">
-              <FiCreditCard size={28} />
+          <div className="flex min-w-0 items-center gap-3 @sm:gap-4">
+            <span className="shrink-0 w-12 h-12 @sm:w-14 @sm:h-14 @lg:w-16 @lg:h-16 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/20">
+              <FiCreditCard size={24} />
             </span>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider opacity-80">
                 {t("available_balance")}
               </p>
-              <p className="mt-1 text-3xl md:text-4xl font-extrabold tracking-tight tabular-nums">
+              {/* Card-width font so long balances fit on mobile */}
+              <p className="mt-1 text-xl @xs:text-2xl @sm:text-3xl @lg:text-4xl font-extrabold tracking-tight tabular-nums break-all leading-tight">
                 {balance}
               </p>
             </div>
@@ -215,6 +240,14 @@ const WalletHistory = () => {
 
       {/* Transactions table */}
       <div className="rounded-xl border cardBorder overflow-hidden bg-white dark:bg-zinc-900">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3.5 md:px-5">
+          <h2 className="text-base font-bold textColor">{t("wallet_history")}</h2>
+          <TransactionFilterTabs
+            options={WALLET_FILTERS}
+            active={filter}
+            onChange={handleFilterChange}
+          />
+        </div>
         {!loading && isError ? (
           <div className="grid place-items-center gap-3 py-10 text-center">
             <p className="font-semibold text-base fontColor">
@@ -247,13 +280,82 @@ const WalletHistory = () => {
                 ))
               : transactions?.map((transaction) => {
                   const isCredit = transaction?.type == "credit";
+                  const txnStatus = String(transaction?.status || "").toLowerCase();
+                  const isFailed = txnStatus === "failed";
+                  const isPending = txnStatus === "pending";
+                  const isSettled = !isFailed && !isPending;
                   const payType = transaction?.payment_type || "";
                   const logo = PAYMENT_LOGOS[payType.toLowerCase()];
                   const isWalletPay = payType.toLowerCase() === "wallet";
+                  const statusLabel = isFailed
+                    ? t("failed") || "Failed"
+                    : isPending
+                      ? t("pending") || "Pending"
+                      : isCredit
+                        ? t("credit")
+                        : t("debit");
+                  const statusText = isFailed
+                    ? "text-red-600 dark:text-red-400"
+                    : isPending
+                      ? "text-amber-600 dark:text-amber-400"
+                      : isCredit
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-red-600 dark:text-red-400";
+                  const amountClass = !isSettled
+                    ? `SecondaryTextColor${isFailed ? " line-through" : ""}`
+                    : isCredit
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400";
+                  const iconBox = (
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border cardBorder bg-white dark:bg-zinc-800">
+                      {logo ? (
+                        <Image src={logo} alt={payType} width={28} height={28} className="h-6 w-auto object-contain" />
+                      ) : isWalletPay ? (
+                        <RiWallet3Line size={20} className="primaryColor" />
+                      ) : (
+                        <RiMoneyDollarCircleLine size={20} className="primaryColor" />
+                      )}
+                    </span>
+                  );
                   return (
+                    <Fragment key={transaction?.id}>
+                    {/* Mobile: app layout — head row, divider, message, date + amount */}
+                    <div className="flex flex-col rounded-xl border cardBorder p-3.5 md:hidden">
+                      <div className="flex items-start gap-3">
+                        {iconBox}
+                        <div className="min-w-0 flex-grow">
+                          <p className="font-bold fontColor capitalize leading-tight">
+                            {payType || (isCredit ? t("credit") : t("debit"))}
+                          </p>
+                          {transaction?.txn_id && (
+                            <p className="mt-1 break-all text-xs SecondaryTextColor">
+                              {t("txn_id") || "TXN ID"}: {transaction.txn_id}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`shrink-0 text-sm font-semibold ${statusText}`}>
+                          {statusLabel}
+                        </span>
+                      </div>
+                      <div className="my-3 border-t border-[var(--border-color)]" />
+                      {transaction?.message && (
+                        <p className="text-sm SecondaryTextColor">{transaction.message}</p>
+                      )}
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <span className="text-xs SecondaryTextColor">
+                          {formatCustomDate(transaction?.created_at)}
+                        </span>
+                        <span className={`text-base font-extrabold whitespace-nowrap tabular-nums ${amountClass}`}>
+                          <WalletTransactionAmount
+                            transaction={transaction}
+                            isCredit={isCredit}
+                            isSettled={isSettled}
+                          />
+                        </span>
+                      </div>
+                    </div>
                     <div
-                      key={transaction?.id}
-                      className="flex h-full items-start gap-3.5 rounded-xl border cardBorder p-4 transition hover:shadow-sm hover:primaryColorBorder"
+                      className="hidden md:flex h-full items-start gap-3.5 rounded-xl border cardBorder p-4 transition hover:shadow-sm hover:primaryColorBorder"
                     >
                       {/* gateway logo (recharge) or wallet/cash icon (order/wallet) */}
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border cardBorder bg-white dark:bg-zinc-800">
@@ -303,27 +405,41 @@ const WalletHistory = () => {
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
                         <span
                           className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                            isCredit
-                              ? "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400"
-                              : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                            isFailed
+                              ? "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
+                              : isPending
+                                ? "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
+                                : isCredit
+                                  ? "bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400"
+                                  : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                           }`}
                         >
-                          {isCredit ? t("credit") : t("debit")}
+                          {isFailed
+                            ? t("failed") || "Failed"
+                            : isPending
+                              ? t("pending") || "Pending"
+                              : isCredit
+                                ? t("credit")
+                                : t("debit")}
                         </span>
                         <p
                           className={`text-base font-extrabold whitespace-nowrap tabular-nums ${
-                            isCredit
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
+                            !isSettled
+                              ? `SecondaryTextColor${isFailed ? " line-through" : ""}`
+                              : isCredit
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-red-600 dark:text-red-400"
                           }`}
                         >
                           <WalletTransactionAmount
                             transaction={transaction}
                             isCredit={isCredit}
+                            isSettled={isSettled}
                           />
                         </p>
                       </div>
                     </div>
+                    </Fragment>
                   );
                 })}
 

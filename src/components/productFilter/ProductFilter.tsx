@@ -1,7 +1,8 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useDispatch, useSelector, shallowEqual } from "react-redux";
+import { shallowEqual } from "react-redux";
 import { clearAllFilter, setBlockSource } from "@/redux/slices/productFilterSlice";
 import * as api from "@/api/apiRoutes";
 import { useProductFilters } from "@/hooks/useProductFilters";
@@ -64,14 +65,20 @@ const Filter = ({
     block_category_ids,
     block_brand_ids,
     filter_mode,
-  } = useSelector(
-    (state: any) => ({
+    block_attribute_value_ids,
+    block_min_price,
+    block_max_price,
+  } = useAppSelector(
+    (state) => ({
       data_source: state.ProductFilter.data_source,
       manual_product_ids: state.ProductFilter.manual_product_ids,
       block_source_id: state.ProductFilter.block_source_id,
       block_category_ids: state.ProductFilter.block_category_ids,
       block_brand_ids: state.ProductFilter.block_brand_ids,
       filter_mode: state.ProductFilter.filter_mode,
+      block_attribute_value_ids: state.ProductFilter.block_attribute_value_ids,
+      block_min_price: state.ProductFilter.block_min_price,
+      block_max_price: state.ProductFilter.block_max_price,
     }),
     shallowEqual,
   );
@@ -85,6 +92,9 @@ const Filter = ({
       block_category_ids,
       block_brand_ids,
       filter_mode,
+      block_attribute_value_ids,
+      block_min_price,
+      block_max_price,
     }),
     [
       urlFilter,
@@ -94,6 +104,9 @@ const Filter = ({
       block_category_ids,
       block_brand_ids,
       filter_mode,
+      block_attribute_value_ids,
+      block_min_price,
+      block_max_price,
     ],
   );
   // Determine if any user filter is currently applied
@@ -115,9 +128,9 @@ const Filter = ({
       filter?.category_id !== "" &&
       filter?.category_id !== "NaN" &&
       filter?.category_id !== "all categories");
-  const city = useSelector((state: any) => state.City);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
-  const dispatch = useDispatch();
+  const city = useAppSelector((state) => state.City);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
+  const dispatch = useAppDispatch();
   // Hydrated location coordinates for client queries
   const isHydrated = useIsHydrated();
   const hydratedLatitude = isHydrated ? city?.city?.latitude : undefined;
@@ -161,9 +174,10 @@ const Filter = ({
   }, [filter?.data_source, filter?.block_source_id, fullCategoryTree]);
   // State for top-level category list and pagination
   const [allCategories, setAllCategories] = useState<any[]>([]);
-  const [totalCategories, setTotalCategories] = useState<number | null>(null);
   const [catOffset, setCatOffset] = useState(0);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  // Set once a page comes back short or empty; stops further paging
+  const [catEndReached, setCatEndReached] = useState(false);
   const categoryLimit = 10;
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   // Memoize visible categories slice to prevent rerenders
@@ -215,6 +229,11 @@ const Filter = ({
     filterMode: filter?.filter_mode,
     minDiscountPercent: filter?.min_discount_percent,
     maxDiscountPercent: filter?.max_discount_percent,
+    // The slider's own scope, not the URL copy: the sheet's options must not
+    // shrink as the customer edits those same filters.
+    attributeValueIds: filter?.block_attribute_value_ids,
+    minPrice: filter?.block_min_price,
+    maxPrice: filter?.block_max_price,
   });
 
   // Sync brand list from category filters API
@@ -311,14 +330,21 @@ const Filter = ({
           latitude: city?.city?.latitude,
           longitude: city?.city?.longitude,
         });
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        if (res?.status != 1 || rows.length < categoryLimit) {
+          setCatEndReached(true);
+        }
         if (res?.status == 1 && Array.isArray(res?.data)) {
-          setAllCategories((prev) =>
-            append ? [...prev, ...res.data] : res.data,
-          );
-          setTotalCategories(res?.total ?? res.data.length);
+          setAllCategories((prev) => {
+            const merged = append ? [...prev, ...res.data] : res.data;
+            // Drop repeats across pages so the tree is not rendered twice
+            const seen = new Set<string | number>();
+            return merged.filter((cat: any) =>
+              seen.has(cat?.id) ? false : (seen.add(cat?.id), true),
+            );
+          });
         }
       } catch (error) {
-        console.log("[filter] getCategories failed", error);
         // Reset key ref on request failure
         if (categoriesFetchKeyRef.current === key) {
           categoriesFetchKeyRef.current = null;
@@ -334,6 +360,7 @@ const Filter = ({
   useEffect(() => {
     const id = setTimeout(() => {
       setCatOffset(0);
+      setCatEndReached(false);
       fetchCategories(0, false);
     }, 300);
     return () => clearTimeout(id);
@@ -341,6 +368,7 @@ const Filter = ({
   }, [language?.id, city?.city?.latitude, city?.city?.longitude]);
 
   const loadMoreCategories = () => {
+    if (loadingCategories || catEndReached) return;
     const next = catOffset + categoryLimit;
     setCatOffset(next);
     fetchCategories(next, true);
@@ -700,8 +728,7 @@ const Filter = ({
                   />
                   {/* Load more categories modal button */}
                   {(allCategories.length > categoryLimit ||
-                    (totalCategories != null &&
-                      totalCategories > allCategories.length)) && (
+                    !catEndReached) && (
                     <button
                       type="button"
                       onClick={() => setShowCategoryModal(true)}
@@ -725,9 +752,7 @@ const Filter = ({
               selectedCategories={selectedCategories}
               onCategoryChange={handleCategoryChange}
               onLoadMore={loadMoreCategories}
-              hasMore={
-                totalCategories != null && totalCategories > allCategories.length
-              }
+              hasMore={!catEndReached}
               loadingMore={loadingCategories}
             />
           )}

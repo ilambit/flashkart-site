@@ -1,3 +1,4 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useMemo, useState } from "react";
 import {
   Dialog as DialogRaw,
@@ -13,7 +14,6 @@ import {
   Elements,
 } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
-import { useDispatch, useSelector } from "react-redux";
 import { t } from "@/utils/translation";
 import { addUserBalance } from "@/redux/slices/userSlice";
 import { useRouter } from "next/navigation";
@@ -72,9 +72,9 @@ const CheckoutForm = ({
   stripeOrderId,
   type,
 }: CheckoutFormProps) => {
-  const dispatch = useDispatch();
-  const user = useSelector((state: any) => state?.User?.user);
-  const theme = useSelector((state: any) => state.Theme.theme);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state?.User?.user);
+  const theme = useAppSelector((state) => state.Theme.theme);
   const router = useRouter();
   const cardElementOptions = getCardOptions(theme);
   const stripe = useStripe();
@@ -85,13 +85,12 @@ const CheckoutForm = ({
     e.preventDefault();
     setIsLoading(true);
     if (!stripe || !elements) {
-      console.log("Stripe not loaded yet");
       setIsLoading(false); // re-enable the pay button; Stripe wasn't ready
       return;
     }
 
     try {
-      const { paymentIntent, error } = await stripe.confirmCardPayment(
+      const { paymentIntent } = await stripe.confirmCardPayment(
         clientSecret,
         {
           payment_method: {
@@ -131,7 +130,7 @@ const CheckoutForm = ({
         router.push(`/web-payment-status?${qs}`);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[StripeModal]", error);
     }
     setIsLoading(false);
   };
@@ -249,12 +248,12 @@ const StripeModal = ({
   stripeOrderId,
   type,
 }: StripeModalProps) => {
-  const setting = useSelector((state: any) => state.Setting);
+  const setting = useAppSelector((state) => state.Setting);
   const stripePromise = useMemo(() => {
     if (!setting?.payment_setting?.stripe_publishable_key) return null;
     return loadStripe(setting.payment_setting.stripe_publishable_key);
   }, [setting]);
-  const theme = useSelector((state: any) => state.Theme.theme);
+  const theme = useAppSelector((state) => state.Theme.theme);
   const cardElementOptions = getCardOptions(theme);
 
   return (

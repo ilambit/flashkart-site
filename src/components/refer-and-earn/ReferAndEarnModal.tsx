@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useAppSelector } from "@/redux/hooks";
+import { useState, useMemo } from "react";
 import {
   IoCopy,
   IoPersonAdd,
@@ -20,7 +21,6 @@ import { RiCloseFill } from "react-icons/ri";
 import dynamic from "next/dynamic";
 import useLazyLottie from "@/hooks/useLazyLottie";
 import { t } from "@/utils/translation";
-import { useSelector } from "react-redux";
 import { ReferStepConnectorIcon } from "@/components/icons";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
@@ -101,16 +101,16 @@ interface ReferAndEarnModalProps {
 }
 
 const ReferAndEarnModal = ({ showReferAndEarn, setShowReferAndEarn }: ReferAndEarnModalProps) => {
-  const user = useSelector((state: any) => state.User.user);
-  const webSettings = useSelector(
-    (state: any) => state.Setting?.setting?.web_settings,
+  const user = useAppSelector((state) => state.User.user);
+  const webSettings = useAppSelector(
+    (state) => state.Setting?.setting?.web_settings,
   );
   // Country settings from redux store
-  const referData = useSelector((state: any) => state.CountrySetting.countrySetting);
+  const referData = useAppSelector((state) => state.CountrySetting.countrySetting);
   // RTL layout flag check
   const isRtl =
-    useSelector(
-      (state: any) => state.Language.selectedLanguage?.type,
+    useAppSelector(
+      (state) => state.Language.selectedLanguage?.type,
     )?.toLowerCase() === "rtl";
   const [copied, setCopied] = useState(false);
   // Flip only after the first copy, not on modal open.

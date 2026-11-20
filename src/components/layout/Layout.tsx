@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { Suspense, useState, useEffect, useLayoutEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Header from "./Header";
@@ -12,13 +13,11 @@ const FloatingActionDock = dynamic(() => import("./FloatingActionDock"), {
 });
 import { setPaymentSetting, setSetting } from "@/redux/slices/settingSlice";
 import { setCountrySetting } from "@/redux/slices/countrySettingSlice";
-import { useSelector, useDispatch } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/apiRoutes";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FiCheck, FiX, FiAlertTriangle, FiInfo } from "react-icons/fi";
-import Loader from "../loader/Loader";
 import { setFavoriteProductIds } from "@/redux/slices/FavoriteSlice";
 import PushNotification from "../firebasenotification/PushNotification";
 import LangFile from "@/utils/en.json";
@@ -133,19 +132,19 @@ const Layout = ({ children }: LayoutProps) => {
       easing: "ease-out",
     });
   }, [pathname]);
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const theme = "light";
-  const setting = useSelector((state: any) => state.Setting);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
-  const city = useSelector((state: any) => state.City.city);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const setting = useAppSelector((state) => state.Setting);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
+  const city = useAppSelector((state) => state.City.city);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
   // Same tab as HomeLayout so the query cache is shared.
-  const selectedCategoryId = useSelector(
-    (state: any) => state.ShopMode.selectedCategoryId,
+  const selectedCategoryId = useAppSelector(
+    (state) => state.ShopMode.selectedCategoryId,
   );
   const queryClient = useQueryClient();
 
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   // Favicon from settings, rendered as a React <link> (raw DOM edits crashed navigation).
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
@@ -193,7 +192,7 @@ const Layout = ({ children }: LayoutProps) => {
                 dispatch(setSelectedLanguage({ data: language }));
               }
             } catch (error) {
-              console.log("error", error);
+              console.error("[Layout]", error);
             }
           } else if (language == null) {
             const langId = response?.data?.find(
@@ -226,7 +225,7 @@ const Layout = ({ children }: LayoutProps) => {
         }
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[Layout]", error);
     }
   };
 
@@ -248,7 +247,6 @@ const Layout = ({ children }: LayoutProps) => {
       if (!silent) setLoading(false);
     } catch (error) {
       if (!silent) setLoading(false);
-      console.log("error", error);
     }
   };
 
@@ -283,7 +281,7 @@ const Layout = ({ children }: LayoutProps) => {
         typeof res.data === "string" ? JSON.parse(atob(res.data)) : res.data;
       dispatch(setCountrySetting({ data }));
     } catch (error) {
-      console.log("error", error);
+      console.error("[Layout]", error);
     }
   };
 
@@ -306,7 +304,6 @@ const Layout = ({ children }: LayoutProps) => {
     } catch (error) {
       dispatch(setPaymentSetting({ data: null }));
       setLoading(false);
-      console.log("error", error);
     }
   };
 
@@ -413,12 +410,6 @@ const Layout = ({ children }: LayoutProps) => {
         const data = result;
 
         if (process.env.NODE_ENV !== "production") {
-          console.log("[CHANNEL TRACE] setChannel payload", {
-            available_modes: data?.available_modes,
-            nested_available_modes: data?.channel?.available_modes,
-            layout_mode: data?.layout_mode,
-            zone_slug: data?.zone_slug,
-          });
         }
         dispatch(
           setChannel({
@@ -448,7 +439,7 @@ const Layout = ({ children }: LayoutProps) => {
           dispatch(setDeliveryTime(data.time_to_deliver));
         if (data?.distance) dispatch(setDeliveryDistance(data.distance));
       } catch (error) {
-        console.log("shop-mode sync error", error);
+        console.error("[Layout]", error);
       }
     })();
 
@@ -483,7 +474,7 @@ const Layout = ({ children }: LayoutProps) => {
           dispatch(setSetting({ data: next }));
           applyPrimaryColor(next?.web_settings, theme);
         } catch (error) {
-          console.log("maintenance refresh failed", error);
+          console.error("[Layout]", error);
         }
       },
     );
@@ -493,15 +484,16 @@ const Layout = ({ children }: LayoutProps) => {
   const isMaintenanceMode =
     mounted && setting?.setting?.web_settings?.website_mode == 1;
 
-  // Settings are persisted, so a returning visitor already has last session's
-  // copy — paint from it and let the fetch revalidate behind the page. Only a
-  // first-ever visit has nothing to show and has to wait.
-  const hasPersistedSetting = !!setting?.setting;
-
+  // No first-visit loader. It used to replace the tree while getSetting() was
+  // in flight, so the server-rendered page was thrown away and the LCP image
+  // only existed once that request landed (21s of LCP "load delay" on slow 4G,
+  // plus a ~440px shift when the page came back). Hiding it behind a white
+  // overlay instead was no better: hydration has to render the same markup the
+  // server sent either way, so the overlay delayed paint without changing a
+  // single node. The server already renders this page with server-fetched
+  // settings — show it, and let the client fetch revalidate underneath.
   let content;
-  if (loading && !hasPersistedSetting) {
-    content = <Loader screen="full" />;
-  } else if (isMaintenanceMode) {
+  if (isMaintenanceMode) {
     content = (
       <MaintanceMode
         message={setting?.setting?.web_settings?.website_mode_remark}

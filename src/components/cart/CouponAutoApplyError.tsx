@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { FiInfo, FiX } from "react-icons/fi";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { t } from "@/utils/translation";
@@ -15,8 +15,8 @@ import {
 
 // Error banner for promo code auto-apply failures with detailed tooltip
 const CouponAutoApplyError = () => {
-  const dispatch = useDispatch();
-  const err = useSelector((s: any) => s.Cart?.promoAutoApplyError);
+  const dispatch = useAppDispatch();
+  const err = useAppSelector((s) => s.Cart?.promoAutoApplyError);
   const [open, setOpen] = useState(false);
   if (!err) return null;
 

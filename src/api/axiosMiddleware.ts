@@ -9,15 +9,14 @@ import { logoutAuth, setJWTToken, setCurrentUser } from "@/redux/slices/userSlic
 import { clearCartPromo, setCart, setCartProducts, setCartSubTotal, setIsGuest } from "@/redux/slices/cartSlice";
 import { isUserDeactivated } from "@/utils/isUserDeactivated";
 import { parseZonePath } from "@/utils/zoneUrl";
+import { toast } from "react-toastify";
 
 const access_key = "903361";
 
-const rawUrl = process.env.NEXT_PUBLIC_API_URL || "https://panel.makkalstarmart.com";
-const rawSubUrl = process.env.NEXT_PUBLIC_API_SUBURL || "/customer";
-const cleanUrl = rawUrl.replace(/\/+$/, "");
-const cleanSubUrl = rawSubUrl.replace(/^\/+|\/+$/g, "");
+const url = process.env.NEXT_PUBLIC_API_URL;
+const subUrl = process.env.NEXT_PUBLIC_API_SUBURL;
 const api: AxiosInstance = axios.create({
-  baseURL: `${cleanUrl}/${cleanSubUrl}/`,
+  baseURL: `${url}${subUrl}/`,
 });
 
 // Request config with the custom, non-standard flag this app adds (see
@@ -62,6 +61,40 @@ export const buildApiHeaders = ({
     if (channel) headers.channel = channel;
   }
   return headers;
+};
+
+// Identical GETs in flight at once (e.g. two components mounting together) share
+// one network call. Each caller gets its own copy so mutation can't leak.
+const defaultAdapter = axios.getAdapter(api.defaults.adapter);
+const inFlightGets = new Map<string, Promise<AxiosResponse>>();
+const cloneResponse = (res: AxiosResponse): AxiosResponse => {
+  try {
+    return { ...res, data: structuredClone(res.data) };
+  } catch {
+    return res;
+  }
+};
+api.defaults.adapter = (config) => {
+  const isPlainGet =
+    (config.method || "get").toLowerCase() === "get" &&
+    !config.signal &&
+    !config.responseType &&
+    !config.onDownloadProgress;
+  if (!isPlainGet) return defaultAdapter(config);
+  const key = JSON.stringify([
+    config.baseURL,
+    config.url,
+    config.params,
+    config.headers?.Authorization,
+    config.headers?.["Content-Language"],
+    config.headers?.["channel"],
+  ]);
+  let pending = inFlightGets.get(key);
+  if (!pending) {
+    pending = defaultAdapter(config).finally(() => inFlightGets.delete(key));
+    inFlightGets.set(key, pending);
+  }
+  return pending.then(cloneResponse);
 };
 
 // TEMPORARY duplicate-API debug logger (NEXT_PUBLIC_DEBUG_API="true").
@@ -198,6 +231,13 @@ api.interceptors.response.use(
     }
     // 401 is expected/handled here; console.error would surface it as an
     // unhandled Runtime AxiosError in the Next.js dev overlay.
+    // Rate limited: show the server's message once, never auto-retry.
+    if (status === 429 && typeof window !== "undefined") {
+      const msg = (error?.response?.data as any)?.message;
+      toast.error(msg || "Too many attempts. Please wait a few minutes and try again.", {
+        toastId: "rate-limited",
+      });
+    }
     if (status !== 401) {
       console.error("Error while fetching data", error);
     }

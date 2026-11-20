@@ -1,9 +1,9 @@
 "use client";
-import React, { useEffect } from "react";
+import { useAppSelector } from "@/redux/hooks";
+import { useEffect } from "react";
 import ProductsList from "@/components/productslist/ProductsList";
-import { useSelector } from "react-redux";
 const Productpage = ({ initialProducts = null }) => {
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
 
   useEffect(() => {}, [language?.id]);
   return <ProductsList initialProducts={initialProducts} />;

@@ -1,12 +1,12 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useState } from "react";
 import BreadCrumb from "../breadcrumb/BreadCrumb";
 import * as api from "@/api/apiRoutes";
 import { useQuery } from "@tanstack/react-query";
 import CategoryPanel from "./CategoryPanel";
 import { useParams, useRouter } from "next/navigation";
-import { useDispatch, useSelector } from "react-redux";
 import {
   setSelectedCategories,
   setListingSource,
@@ -15,7 +15,7 @@ import {
   setBlockSource,
 } from "@/redux/slices/productFilterSlice";
 import { t } from "@/utils/translation";
-import { PackageOpen } from "lucide-react";
+import { LuPackageOpen } from "react-icons/lu";
 import useZoneHref from "@/hooks/useZoneHref";
 import useUrlProductFilters from "@/hooks/useUrlProductFilters";
 import { categoriesKey } from "@/utils/queryKeys";
@@ -27,13 +27,13 @@ import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder
 const Category = ({ initialCategory = null }: { initialCategory?: any }) => {
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const { run: runNavClick } = useNavClick();
   const params = useParams();
   const slug = params?.slug;
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
-  const city = useSelector((state: any) => state.City);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
+  const city = useAppSelector((state) => state.City);
   // SSR coords until hydrated — avoids refetching the seeded page.
   const isHydrated = useIsHydrated();
   const latitude = !isHydrated
@@ -95,8 +95,8 @@ const Category = ({ initialCategory = null }: { initialCategory?: any }) => {
     }
   }, [categoriesResponse, page]);
 
-  const categoryBreadcrumb = useSelector(
-    (state: any) => state.ProductFilter.categoryBreadcrumb,
+  const categoryBreadcrumb = useAppSelector(
+    (state) => state.ProductFilter.categoryBreadcrumb,
   );
 
   const navigateToCategory = (category: any) => {
@@ -168,7 +168,7 @@ const Category = ({ initialCategory = null }: { initialCategory?: any }) => {
       return (
         <div className="my-16 flex flex-col items-center justify-center text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl primaryLightBack">
-            <PackageOpen className="h-8 w-8 primaryColor" />
+            <LuPackageOpen className="h-8 w-8 primaryColor" />
           </div>
           <h3 className="text-lg font-semibold text-slate-800 dark:text-zinc-100">
             {t("no_categories_found")}

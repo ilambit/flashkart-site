@@ -1,4 +1,3 @@
-import React from "react";
 import { t } from "@/utils/translation";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
 import { useRouter } from "next/navigation";

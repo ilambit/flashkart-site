@@ -1,3 +1,4 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { t } from "@/utils/translation";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,7 +14,6 @@ import {
 } from "react-icons/io5";
 import { MdPhoneInTalk } from "react-icons/md";
 import { FaXTwitter } from "react-icons/fa6";
-import { useSelector, useDispatch } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import {
   clearAllFilter,
@@ -83,15 +83,15 @@ const FooterColumn = ({ title, children }: { title: React.ReactNode; children: R
 const Footer = () => {
   const zoneHref = useZoneHref();
   const buildQueryPatch = (patch: Record<string, any>) => serializeFilterPatch({}, patch);
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
-  const setting = useSelector((state: any) => state?.Setting?.setting);
+  const setting = useAppSelector((state) => state?.Setting?.setting);
   const isHydrated = useIsHydrated();
   const isStandalone = useStandalone();
-  const isLoggedInRaw = useSelector((state: any) => !!state?.User?.jwtToken);
+  const isLoggedInRaw = useAppSelector((state) => !!state?.User?.jwtToken);
   const isLoggedIn = isHydrated && isLoggedInRaw;
-  const paymentSettings = useSelector(
-    (state: any) => state?.Setting?.payment_setting,
+  const paymentSettings = useAppSelector(
+    (state) => state?.Setting?.payment_setting,
   );
 
   const enabledPaymentMethods = paymentMethodsConfig.filter(
@@ -99,12 +99,12 @@ const Footer = () => {
       paymentSettings?.[method.key] && paymentSettings?.[method.key] === "1",
   );
 
-  const selectedCountry = useSelector(
-    (state: any) => state?.LocationModal?.selectedCountry,
+  const selectedCountry = useAppSelector(
+    (state) => state?.LocationModal?.selectedCountry,
   );
-  const city = useSelector((state: any) => state?.City?.city);
-  const selectedLanguage = useSelector(
-    (state: any) => state?.Language?.selectedLanguage,
+  const city = useAppSelector((state) => state?.City?.city);
+  const selectedLanguage = useAppSelector(
+    (state) => state?.Language?.selectedLanguage,
   );
 
   // Top 6 footer categories
@@ -179,9 +179,9 @@ const Footer = () => {
   };
 
   const switchLanguageUrl = useLanguageSwitch();
-  const language = useSelector((state: any) => state.Language);
-  const jwtToken = useSelector((state: any) => state?.User?.jwtToken);
-  const fcmToken = useSelector((state: any) => state?.User?.fcm_token);
+  const language = useAppSelector((state) => state.Language);
+  const jwtToken = useAppSelector((state) => state?.User?.jwtToken);
+  const fcmToken = useAppSelector((state) => state?.User?.fcm_token);
   const [languageOpen, setLanguageOpen] = useState(false);
   const languageRef = useRef<HTMLDivElement | null>(null);
 
@@ -223,11 +223,11 @@ const Footer = () => {
             fcmToken,
           });
         } catch (fcmErr: any) {
-          console.log("FCM token update failed:", fcmErr?.message);
+          console.error("[Footer]", fcmErr);
         }
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[Footer]", error);
     }
   };
 
@@ -365,6 +365,7 @@ const Footer = () => {
                     alt="Download our app"
                     width={280}
                     height={280}
+                    fetchPriority="low"
                     unoptimized
                     className="h-auto w-[110px] object-contain transition-transform duration-200 ease-out will-change-transform [transform-style:preserve-3d] sm:w-[150px] md:w-[280px]"
                     quality={95}

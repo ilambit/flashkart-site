@@ -1,8 +1,8 @@
 "use client";
+import { useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useRef, useState } from "react";
 import { t } from "@/utils/translation";
 import { toast } from "react-toastify";
-import { useSelector } from "react-redux";
 import { usePathname, useRouter } from "next/navigation";
 import SearchProductCard from "../cards/SearchProductCard";
 import { IoSearchOutline, IoTimeOutline, IoTrendingUp, IoMicOutline, IoMic, IoClose } from "react-icons/io5";
@@ -46,7 +46,7 @@ const SearchComponent = ({ handleSearch, isSuggLoading, isSuggError, onRetrySear
   const pathname = usePathname();
   const { buildQueryPatch } = useUrlProductFilters();
   // Search suggestions data from redux
-  const searchProduct = useSelector((state: any) => state.ProductFilter.search_product);
+  const searchProduct = useAppSelector((state) => state.ProductFilter.search_product);
   // Search placeholder rotation hook
   const { suggestion, index: suggestionIndex, hasSuggestions } =
     useSearchPlaceholder({ active: !searchText });
@@ -61,7 +61,7 @@ const SearchComponent = ({ handleSearch, isSuggLoading, isSuggError, onRetrySear
   const [opened, setOpened] = useState(false);
   const { recent, add: addRecent, remove: removeRecent, clear: clearRecent } =
     useRecentSearches();
-  const rawTrending = useSelector((state: any) => state?.ShopMode?.searchSuggestions);
+  const rawTrending = useAppSelector((state) => state?.ShopMode?.searchSuggestions);
   const trending: string[] = Array.isArray(rawTrending) ? rawTrending.slice(0, 8) : [];
   const rootRef = useRef<HTMLDivElement | null>(null);
 

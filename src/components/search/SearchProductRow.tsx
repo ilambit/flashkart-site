@@ -44,6 +44,123 @@ const SearchProductRow = ({ title, products, isLoading, animate = false }: Searc
     return () => window.removeEventListener("resize", updateArrows);
   }, [products.length, isLoading, updateArrows]);
 
+  // Mouse drag scrolls the row like the Similar Products swiper; touch keeps native swipe
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let startX = 0;
+    let startLeft = 0;
+    let pointerId: number | null = null;
+    let dragged = false;
+    let frame = 0;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    let samples: { x: number; t: number }[] = [];
+
+    const stopMotion = () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(settleTimer);
+    };
+    const restoreSnap = () => {
+      el.style.scrollSnapType = "";
+    };
+    // Glide onto the nearest card, then hand back to CSS snap
+    const settle = () => {
+      const rtl = getComputedStyle(el).direction === "rtl";
+      const pad = parseFloat(getComputedStyle(el).scrollPaddingInlineStart) || 0;
+      const box = el.getBoundingClientRect();
+      let best = 0;
+      let bestDist = Infinity;
+      for (const child of Array.from(el.children) as HTMLElement[]) {
+        const r = child.getBoundingClientRect();
+        const delta = rtl ? r.right - (box.right - pad) : r.left - (box.left + pad);
+        if (Math.abs(delta) < bestDist) {
+          bestDist = Math.abs(delta);
+          best = delta;
+        }
+      }
+      el.scrollTo({ left: el.scrollLeft + best, behavior: reduceMotion ? "auto" : "smooth" });
+      settleTimer = setTimeout(restoreSnap, reduceMotion ? 0 : 400);
+    };
+    // Inertia: keep the release speed and let friction slow it down
+    const glide = (velocity: number) => {
+      let v = velocity;
+      let last = performance.now();
+      const step = (now: number) => {
+        const dt = Math.min(now - last, 32);
+        last = now;
+        const before = el.scrollLeft;
+        el.scrollLeft = before + v * dt;
+        v *= Math.pow(0.95, dt / 16);
+        const stuck = Math.abs(el.scrollLeft - before) < 0.5 && Math.abs(v * dt) >= 0.5;
+        if (Math.abs(v) < 0.05 || stuck) return settle();
+        frame = requestAnimationFrame(step);
+      };
+      frame = requestAnimationFrame(step);
+    };
+
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      stopMotion();
+      pointerId = e.pointerId;
+      startX = e.clientX;
+      startLeft = el.scrollLeft;
+      dragged = false;
+      samples = [{ x: el.scrollLeft, t: e.timeStamp }];
+    };
+    const onMove = (e: PointerEvent) => {
+      if (pointerId !== e.pointerId) return;
+      const dx = e.clientX - startX;
+      if (!dragged) {
+        if (Math.abs(dx) < 5) return;
+        dragged = true;
+        el.setPointerCapture(e.pointerId);
+        el.style.scrollSnapType = "none";
+        el.style.cursor = "grabbing";
+      }
+      el.scrollLeft = startLeft - dx;
+      samples.push({ x: el.scrollLeft, t: e.timeStamp });
+      if (samples.length > 6) samples.shift();
+    };
+    const onUp = (e: PointerEvent) => {
+      if (pointerId !== e.pointerId) return;
+      pointerId = null;
+      el.style.cursor = "";
+      if (!dragged) return restoreSnap();
+      // Speed over the last ~100ms of the drag, in px per ms
+      const recent = samples.filter((p) => e.timeStamp - p.t < 100);
+      const first = recent[0];
+      const lastSample = recent[recent.length - 1];
+      const span = first && lastSample ? lastSample.t - first.t : 0;
+      const velocity = span > 0 ? (lastSample.x - first.x) / span : 0;
+      if (!reduceMotion && Math.abs(velocity) > 0.2) glide(Math.max(-4, Math.min(4, velocity)));
+      else settle();
+    };
+    // A drag must not open the card it ends on
+    const onClick = (e: MouseEvent) => {
+      if (!dragged) return;
+      e.preventDefault();
+      e.stopPropagation();
+      dragged = false;
+    };
+    const onDragStart = (e: DragEvent) => e.preventDefault();
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    el.addEventListener("click", onClick, true);
+    el.addEventListener("dragstart", onDragStart);
+    return () => {
+      stopMotion();
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+      el.removeEventListener("click", onClick, true);
+      el.removeEventListener("dragstart", onDragStart);
+    };
+  }, [isLoading]);
+
   const scrollByPage = (sign: 1 | -1) => {
     const el = rowRef.current;
     if (!el) return;
@@ -70,7 +187,7 @@ const SearchProductRow = ({ title, products, isLoading, animate = false }: Searc
         <div
           ref={rowRef}
           onScroll={updateArrows}
-          className="no-scrollbar -mx-2 flex snap-x snap-mandatory scroll-px-2 gap-1.5 overflow-x-auto overscroll-x-contain px-2 pb-1 sm:-mx-3 sm:scroll-px-3 sm:gap-2.5 sm:px-3"
+          className="no-scrollbar -mx-2 flex cursor-grab select-none snap-x snap-mandatory scroll-px-2 gap-1.5 overflow-x-auto overscroll-x-contain px-2 pb-1 sm:-mx-3 sm:scroll-px-3 sm:gap-2.5 sm:px-3"
         >
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)

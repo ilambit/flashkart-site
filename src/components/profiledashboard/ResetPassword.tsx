@@ -76,7 +76,7 @@ const ResetPassword = ({ embedded = false, onSuccess, onCancel }: ResetPasswordP
                 toast.error(res.message)
             }
         } catch (error) {
-            console.log("error", error)
+          console.error("[ResetPassword]", error);
         } finally {
             setSubmitting(false)
         }

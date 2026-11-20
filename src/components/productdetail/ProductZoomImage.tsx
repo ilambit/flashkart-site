@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 
 interface ProductZoomImageProps {
   image?: string;
@@ -12,9 +12,9 @@ const ZOOM = 2.2;
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
 const ProductZoomImage = ({ image, overlay, alt = "" }: ProductZoomImageProps) => {
-  const setting = useSelector((state: any) => state.Setting);
+  const setting = useAppSelector((state) => state.Setting);
   const placeholder = setting?.setting?.web_settings?.placeholder_image;
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   const isRtl = language?.type?.toLowerCase() === "rtl";
 
   const [imgSrc, setImgSrc] = useState(image || placeholder);

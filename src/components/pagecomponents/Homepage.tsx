@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import { useAppDispatch } from "@/redux/hooks";
+import { useEffect } from "react";
 import Home from "@/components/homepage/Home";
-import { useDispatch } from "react-redux";
 import { usePathname } from "next/navigation";
 import { clearAllFilter } from "@/redux/slices/productFilterSlice";
 
@@ -12,7 +12,7 @@ interface HomepageProps {
 }
 
 const Homepage = ({ initialHomeLayout = null, heading = null }: HomepageProps) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const pathname = usePathname();
 
   useEffect(() => {

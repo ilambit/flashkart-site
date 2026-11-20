@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Image from "next/image";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { RiCloseFill } from "react-icons/ri";
@@ -20,7 +19,6 @@ import NoReturnIcon from "@/assets/icon/no-return.svg";
 import CodIcon from "@/assets/icon/cod.svg";
 import ThemedSvg from "@/components/notfound/ThemedSvg";
 import Loader from "../loader/Loader";
-import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
 import ProductMedia from "../productdetail/ProductMedia";
 import { isVideoUrl } from "@/utils/helperFunction";
 import {

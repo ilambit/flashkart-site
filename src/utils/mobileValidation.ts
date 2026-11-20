@@ -45,13 +45,3 @@ export const validateMobileLength = (
   return null;
 };
 
-/** True when the number is present AND within its country's bounds. */
-export const isMobileLengthValid = (
-  rawPhone: string | number | null | undefined,
-  country?: any,
-): boolean => {
-  const digits = String(rawPhone ?? "").replace(/\D/g, "");
-  if (!digits) return false;
-  return !validateMobileLength(digits, country);
-};
-

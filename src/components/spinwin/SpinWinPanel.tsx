@@ -1,9 +1,9 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { m, AnimatePresence } from "framer-motion";
-import { useSelector } from "react-redux";
 import { t } from "@/utils/translation";
 import useIsHydrated from "@/hooks/useIsHydrated";
 import useZoneHref from "@/hooks/useZoneHref";
@@ -55,10 +55,8 @@ interface SpinWinPanelProps {
  * Spin & Win interactive campaign panel.
  */
 const SpinWinPanel = ({ onNavigateAway }: SpinWinPanelProps = {}) => {
-  // 240KB of Lottie JSON — its own chunk, fetched after mount.
-  const confettiFall = useLazyLottie(() => import("@/assets/confetti.json"));
-  const user = useSelector((state: any) => state.User?.user);
-  const city = useSelector((state: any) => state.City);
+  const user = useAppSelector((state) => state.User?.user);
+  const city = useAppSelector((state) => state.City);
   const isHydrated = useIsHydrated();
   const latitude = isHydrated ? city?.city?.latitude : undefined;
   const longitude = isHydrated ? city?.city?.longitude : undefined;
@@ -91,6 +89,22 @@ const SpinWinPanel = ({ onNavigateAway }: SpinWinPanelProps = {}) => {
   const [copied, setCopied] = useState(false);
   const zoneHref = useZoneHref();
   const router = useRouter();
+
+  // Idle gate so the 240KB confetti chunk never parses during the open animation.
+  const [idleReady, setIdleReady] = useState(false);
+  useEffect(() => {
+    const w = window as any;
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(() => setIdleReady(true), { timeout: 2000 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(() => setIdleReady(true), 1200);
+    return () => window.clearTimeout(id);
+  }, []);
+  const confettiFall = useLazyLottie(
+    () => import("@/assets/confetti.json"),
+    idleReady,
+  );
 
   const { currency, decimals } = useCurrency();
   const isWin = spinResult?.result === "win";

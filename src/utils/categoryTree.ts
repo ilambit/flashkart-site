@@ -35,18 +35,6 @@ export const collectLeafCategoryEntries = (
   return out;
 };
 
-// Leaf descendant ids under `node`.
-export const collectLeafCategoryIds = (
-  node?: CategoryNode | null,
-): (number | string | undefined)[] =>
-  collectLeafCategoryEntries(node).map((e) => e.id);
-
-/** Convert resolved ids into the comma-string `category_id` filter format. */
-export const toCategoryIdCsv = (
-  ids?: (number | string | null | undefined)[] | null,
-): string =>
-  Array.isArray(ids) ? ids.filter((id) => id != null).join(",") : "";
-
 /** Convert resolved {id,slug} entries into a comma-string of slugs. */
 export const toCategorySlugCsv = (
   entries?: LeafCategoryEntry[] | null,

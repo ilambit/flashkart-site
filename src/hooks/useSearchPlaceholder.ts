@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 
 const ROTATE_MS = 2500;
 
@@ -17,8 +17,8 @@ interface UseSearchPlaceholderResult {
 const useSearchPlaceholder = ({
   active = true,
 }: UseSearchPlaceholderOptions = {}): UseSearchPlaceholderResult => {
-  const suggestions = useSelector(
-    (state: any) => state?.ShopMode?.searchSuggestions,
+  const suggestions = useAppSelector(
+    (state) => state?.ShopMode?.searchSuggestions,
   );
   const [index, setIndex] = useState(0);
 

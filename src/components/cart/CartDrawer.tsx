@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { t } from "@/utils/translation";
@@ -10,7 +11,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import CartProductsCard from "./CartDrawerProductsCard";
-import { useSelector, useDispatch } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import NoCartData from "@/assets/empty-state/empty-cart.svg";
 import {
@@ -85,16 +85,16 @@ const CartDrawer = ({
   const zoneHref = useZoneHref();
   const { storeClosed, notifyClosed, closedProps } = useStoreClosed();
   const { clearAll: clearUrlFilters } = useUrlProductFilters();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
   const { parseLangPath } = useLanguages();
-  const city = useSelector((state: any) => state.City.city);
-  const cart = useSelector((state: any) => state.Cart);
-  const user = useSelector((state: any) => state.User);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
-  const coupon = useSelector((state: any) => state.Cart.promo_code);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const city = useAppSelector((state) => state.City.city);
+  const cart = useAppSelector((state) => state.Cart);
+  const user = useAppSelector((state) => state.User);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
+  const coupon = useAppSelector((state) => state.Cart.promo_code);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
   const activeChannel = shopMode === "quick" ? "quick" : "ecommerce";
 
   const openFetchedRef = useRef(false);
@@ -240,7 +240,6 @@ const CartDrawer = ({
     } catch (error) {
       if (seq !== fetchSeqRef.current) return;
       setLoading(false);
-      console.log("error", error);
     }
   };
 
@@ -263,7 +262,7 @@ const CartDrawer = ({
       );
       setSelectedAddress(match || list.find((a: any) => a?.is_default == 1) || null);
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartDrawer]", error);
     } finally {
       setAddressListLoading(false);
     }
@@ -297,7 +296,7 @@ const CartDrawer = ({
         await handleRemoveCoupon();
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartDrawer]", error);
     } finally {
       setCouponLoading(false);
     }
@@ -315,7 +314,7 @@ const CartDrawer = ({
       });
       setCouponCodes(response?.data || []);
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartDrawer]", error);
     } finally {
       setCouponListLoading(false);
     }
@@ -363,7 +362,7 @@ const CartDrawer = ({
         );
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartDrawer]", error);
     } finally {
       setLoading(false);
     }
@@ -414,10 +413,13 @@ const CartDrawer = ({
   const isCashbackCoupon = cart?.promo_code?.discount_apply_type === "wallet";
   const promoDiscount = Number(cart?.promo_code?.discount || 0);
   const savedAmount = Number(cartData?.saved_amount || 0);
-  const cartTotalWithCoupon =
-    isCouponApplied && !isCashbackCoupon
-      ? cart?.cartSubTotal - savedAmount - promoDiscount
-      : cart?.cartSubTotal - savedAmount;
+  // API sub_total is already after product discounts; MRP row adds saved_amount back.
+  const subTotal = Number(cart?.cartSubTotal || 0);
+  const mrpTotal = subTotal + savedAmount;
+  const cartTotalWithCoupon = Math.max(
+    subTotal - (isCouponApplied && !isCashbackCoupon ? promoDiscount : 0),
+    0,
+  );
   const handleRemoveCoupon = async () => {
     setCouponLoading(true);
     dispatch(clearCartPromo());
@@ -532,7 +534,7 @@ const CartDrawer = ({
         setShowCouponCode(false);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartDrawer]", error);
     } finally {
       setClearLoading(false);
     }
@@ -723,7 +725,7 @@ const CartDrawer = ({
           {!cart.isGuest && (
             <div className="flex justify-between text-sm SecondaryTextColor">
               <span>{t("subtotal")}</span>
-              <span>{money(cart?.cartSubTotal)}</span>
+              <span>{money(mrpTotal)}</span>
             </div>
           )}
           {!cart.isGuest && isCouponApplied && !isCashbackCoupon && (
@@ -735,7 +737,7 @@ const CartDrawer = ({
           {!cart.isGuest && cartData?.saved_amount > 0 && (
             <div className="flex justify-between text-sm primaryColor dark:text-green-400">
               <span>{t("you_save")}</span>
-              <span>{money(cartData?.saved_amount)}</span>
+              <span>-{money(savedAmount)}</span>
             </div>
           )}
           <div className="flex justify-between border-t pt-2 text-base font-bold textColor">

@@ -1,4 +1,4 @@
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
 import { toast } from "react-toastify";
 import { t } from "@/utils/translation";
 
@@ -15,7 +15,7 @@ interface UseStoreClosedResult {
 
 const useStoreClosed = (): UseStoreClosedResult => {
   const storeClosed =
-    useSelector((state: any) => state.ShopMode?.storeClosed) === true;
+    useAppSelector((state) => state.ShopMode?.storeClosed) === true;
 
   const notifyClosed = () => {
     toast.error(t("store_closed_cannot_order"));

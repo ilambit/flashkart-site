@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import ReturnExchangePolicyPage from "@/components/pagecomponents/ReturnExchangePolicyPage";
+import CmsPage from "@/components/cms/CmsPage";
+import { getCmsHtml } from "@/utils/cmsContent";
 import { fetchSeoRow, resolveZoneForSeo } from "@/utils/fetchSeoRow";
 import { buildPageMetadata } from "@/utils/buildMetadata";
 import { canonicalUrl, hreflangAlternates } from "@/utils/canonicalUrl";
@@ -62,6 +63,7 @@ export default async function ReturnExchangePolicyRoute({
   params: Params;
 }) {
   const { lang } = await params;
+  const html = await getCmsHtml({ lang, settingKey: "returns_and_exchanges_policy", countryKey: "return_policy" });
   const result = await loadReturnExchangeSeo(lang);
   if (result.notFound) notFound();
 
@@ -76,7 +78,7 @@ export default async function ReturnExchangePolicyRoute({
       )}
       {/* SEO H1 — CMS body has none, so visually hidden. */}
       {result.seo.title && <h1 className="sr-only">{result.seo.title}</h1>}
-      <ReturnExchangePolicyPage />
+      <CmsPage html={html} align="start" />
     </div>
   );
 }

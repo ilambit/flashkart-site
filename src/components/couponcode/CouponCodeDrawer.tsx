@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useAppSelector } from "@/redux/hooks";
+import { useState, useEffect, useCallback } from "react";
 import * as api from "@/api/apiRoutes";
 import {
   Sheet,
@@ -9,7 +10,6 @@ import {
 import { RiCloseFill } from "react-icons/ri";
 import { t } from "@/utils/translation";
 import CouponList from "./CouponList";
-import { useSelector } from "react-redux";
 import useDir from "@/hooks/useDir";
 
 interface CouponCodeDrawerProps {
@@ -18,10 +18,10 @@ interface CouponCodeDrawerProps {
 }
 
 const CouponCodeDrawer = ({ showCouponCode, setShowCouponCode }: CouponCodeDrawerProps) => {
-  const cart = useSelector((state: any) => state.Cart);
-  const city = useSelector((state: any) => state.City);
-  const checkout = useSelector((state: any) => state.Checkout);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const cart = useAppSelector((state) => state.Cart);
+  const city = useAppSelector((state) => state.City);
+  const checkout = useAppSelector((state) => state.Checkout);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   const dir = useDir();
   // Promo code rows come from the untyped /promo API response — kept `any[]`.
   const [couponCodes, setCouponCodes] = useState<any[]>([]);
@@ -37,7 +37,6 @@ const CouponCodeDrawer = ({ showCouponCode, setShowCouponCode }: CouponCodeDrawe
       });
       setCouponCodes(response?.data || []);
     } catch (error) {
-      console.log("Error", error);
     } finally {
       setLoading(false);
     }

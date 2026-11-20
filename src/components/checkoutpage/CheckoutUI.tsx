@@ -1,7 +1,9 @@
 "use client";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { isGatewayAllowedForCurrency } from "@/utils/paymentSettings";
 import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { useDispatch, useSelector } from "react-redux";
+import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import {
   FiMapPin,
@@ -11,10 +13,17 @@ import {
   FiTag,
   FiChevronRight,
   FiChevronLeft,
+  FiChevronUp,
+  FiChevronDown,
+  FiFileText,
   FiCheck,
+  FiClock,
 } from "react-icons/fi";
+import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { RiWallet3Line } from "react-icons/ri";
 
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import useHydratedMediaQuery from "@/hooks/useHydratedMediaQuery";
 import * as api from "@/api/apiRoutes";
 import { t } from "@/utils/translation";
 import {
@@ -34,6 +43,10 @@ import useCheckoutPayment from "@/hooks/useCheckoutPayment";
 import { getPickupErrorMessage } from "@/utils/placeOrderErrors";
 
 import CheckoutSkeleton from "./CheckoutSkeleton";
+import ThemedSvg from "@/components/notfound/ThemedSvg";
+import NoCartData from "@/assets/empty-state/empty-cart.svg";
+import useZoneHref from "@/hooks/useZoneHref";
+import usePaymentResult, { isCartBranchChanged } from "@/hooks/usePaymentResult";
 import CheckoutItemRow from "./UI/CheckoutItemRow";
 import {
   toGaItem,
@@ -94,20 +107,26 @@ const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
 const CheckoutUI = () => {
   const { storeClosed, notifyClosed, closedProps } = useStoreClosed();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const rtl = isRtl();
 
-  const cart = useSelector((state: any) => state.Cart);
-  const address = useSelector((state: any) => state.Addresses);
-  const user = useSelector((state: any) => state.User.user);
-  const setting = useSelector((state: any) => state.Setting);
-  const checkout = useSelector((state: any) => state.Checkout);
-  const prescriptions = useSelector((state: any) => state.Cart.prescriptions);
-  const city = useSelector((state: any) => state.City.city);
-  const theme = useSelector((state: any) => state.Theme.theme);
+  const cart = useAppSelector((state) => state.Cart);
+  const address = useAppSelector((state) => state.Addresses);
+  const user = useAppSelector((state) => state.User.user);
+  const setting = useAppSelector((state) => state.Setting);
+  const checkout = useAppSelector((state) => state.Checkout);
+  const prescriptions = useAppSelector((state) => state.Cart.prescriptions);
+  const city = useAppSelector((state) => state.City.city);
+  const theme = useAppSelector((state) => state.Theme.theme);
   // Active channel (quick/ecommerce); refetch on change.
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
+  const deliveryTime = useAppSelector((state) => state.ShopMode.deliveryTime);
+  // Below lg the page follows the app layout, same breakpoint as the bottom bar.
+  const isCompact = useHydratedMediaQuery("(max-width: 1023px)");
   const activeChannel = cart?.activeChannel;
+  const router = useRouter();
+  const zoneHref = useZoneHref();
+  const { handlePaymentResult } = usePaymentResult();
 
   // Cart counts; refetch when items change outside this page.
   const reduxCartCount = cart?.cartProducts?.length ?? 0;
@@ -155,12 +174,15 @@ const CheckoutUI = () => {
     liveCurrency || checkoutData?.currency || cart?.currency;
   const decimals = liveDecimals || checkoutData?.decimal_point || 0;
   const currencyCode =
-    liveCurrencyCode || checkoutData?.currency_code || cart?.currency_code;
+    liveCurrencyCode || checkoutData?.currency_code;
 
   const [discountInput, setDiscountInput] = useState("");
   const [showCouponCode, setShowCouponCode] = useState(false);
   // Payment picker modal.
   const [showPaymentPicker, setShowPaymentPicker] = useState(false);
+  // Mobile keeps addresses out of the page, like the app's bottom bar.
+  const [showAddressSheet, setShowAddressSheet] = useState(false);
+  const [showTotals, setShowTotals] = useState(false);
 
   const billingDetails = useBillingDetails();
   // Spec follows the billed party's country — resolve it from its coordinates.
@@ -178,7 +200,7 @@ const CheckoutUI = () => {
       });
       dispatch(setCurrentUser({ data: response.data }));
     } catch (error) {
-      console.log("error", error);
+      console.error("[CheckoutUI]", error);
     }
   };
 
@@ -203,7 +225,7 @@ const CheckoutUI = () => {
         dispatch(clearCartPromo());
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CheckoutUI]", error);
     }
   };
 
@@ -236,14 +258,6 @@ const CheckoutUI = () => {
 
     // Only the latest request may update state.
     const seq = ++fetchSeqRef.current;
-    console.log("[checkout] cart request →", {
-      seq,
-      addressId: checkout?.address?.id ?? null,
-      latitude,
-      longitude,
-      orderType,
-      promocode_id: couponseCodeId,
-    });
 
     try {
       const response = await api.getCart({
@@ -257,10 +271,6 @@ const CheckoutUI = () => {
 
       // Drop stale response (a newer fetch already fired).
       if (seq !== fetchSeqRef.current) {
-        console.log("[checkout] cart response IGNORED (stale)", {
-          seq,
-          latest: fetchSeqRef.current,
-        });
         return;
       }
       // Deliverability comes from the cart API; pickup never blocks.
@@ -271,15 +281,6 @@ const CheckoutUI = () => {
       const isPickupOrder = response?.data?.delivery_type === "pickup";
       const isDeliverable =
         isPickupOrder || (deliveryAvailable && isDeliverableAddress);
-      console.log("[checkout] cart response ←", {
-        seq,
-        status: response?.status,
-        delivery_available: response?.data?.delivery_available,
-        is_deliverable_address: response?.data?.is_deliverable_address,
-        delivery_type: response?.data?.delivery_type,
-        cartBefore: (checkoutData?.cart ?? lastCartRef.current?.cart ?? [])
-          .length,
-      });
 
       if (response?.status == 1) {
         // Valid cart: always show items.
@@ -302,11 +303,6 @@ const CheckoutUI = () => {
               "Sorry, We are not delivering on selected address",
           );
         }
-        console.log("[checkout] store updated", {
-          deliverable: isDeliverable,
-          cartAfter: response?.data?.cart?.length ?? 0,
-          total: response?.data?.total_amount,
-        });
       } else {
         // status 0 = empty cart for this channel; clear the screen.
         console.warn("[checkout] empty cart for channel — clearing", {
@@ -321,7 +317,6 @@ const CheckoutUI = () => {
         setDeliveryError("");
       }
     } catch (error) {
-      console.log("[checkout] cart request error", error);
       if (seq === fetchSeqRef.current) setCheckOutError(true);
     } finally {
       if (seq === fetchSeqRef.current) {
@@ -349,7 +344,6 @@ const CheckoutUI = () => {
         setUpSell([]);
       }
     } catch (error) {
-      console.log("Error", error);
       setCrossSell([]);
       setUpSell([]);
     }
@@ -383,7 +377,7 @@ const CheckoutUI = () => {
         dispatch(setAllAddresses({ data: [] }));
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CheckoutUI]", error);
     } finally {
       setLoading(false);
     }
@@ -450,10 +444,6 @@ const CheckoutUI = () => {
       return;
     }
     // Clear the previous channel's cart (skip first mount).
-    console.log("[checkout] channel changed → refetching", {
-      activeChannel,
-      shopMode,
-    });
     lastCartRef.current = null;
     setCheckoutData(null);
     setCheckOutError(false);
@@ -487,7 +477,7 @@ const CheckoutUI = () => {
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CheckoutUI]", error);
     }
   };
 
@@ -557,7 +547,6 @@ const CheckoutUI = () => {
         handleFetchCheckout();
       }
     } catch (error) {
-      console.log("error", error);
       // Network failure — restore the true server cart.
       handleFetchCheckout();
     }
@@ -581,7 +570,7 @@ const CheckoutUI = () => {
         dispatch(clearCartPromo());
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CheckoutUI]", error);
     }
   };
 
@@ -606,7 +595,7 @@ const CheckoutUI = () => {
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CheckoutUI]", error);
     }
   };
 
@@ -616,12 +605,6 @@ const CheckoutUI = () => {
 
   // ---- address ----
   const handleSelectAddress = (addr: any) => {
-    console.log("[checkout] address selected", {
-      id: addr?.id,
-      type: addr?.type,
-      latitude: addr?.latitude,
-      longitude: addr?.longitude,
-    });
     // Clear the old error; refetch re-validates.
     setDeliveryError("");
     dispatch(setAddress({ data: addr }));
@@ -654,7 +637,7 @@ const CheckoutUI = () => {
         toast.error(response?.message);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CheckoutUI]", error);
     } finally {
       setDeletingAddress(false);
     }
@@ -701,7 +684,6 @@ const CheckoutUI = () => {
       const row = Array.isArray(res?.data) ? res.data[0] : res?.data;
       return row?.id ?? row?.order_id ?? null;
     } catch (error) {
-      console.log("[placeOrder] fetchLatestOrderId failed", error);
       return null;
     }
   };
@@ -860,9 +842,13 @@ const CheckoutUI = () => {
         setCheckoutLoading(false);
       } else {
         setCheckoutLoading(false);
+        if (handlePaymentResult(response)) return;
         toast.error(getPickupErrorMessage(response?.message) || response?.message);
         // Stale pickup location: refetch the cart.
-        if (response?.message === "pickup_store_changed_refresh_cart") {
+        if (
+          response?.message === "pickup_store_changed_refresh_cart" ||
+          isCartBranchChanged(response)
+        ) {
           handleFetchCheckout();
         }
       }
@@ -901,12 +887,6 @@ const CheckoutUI = () => {
       currencyCode,
     );
   }, [products.length, currencyCode]);
-  console.log("[checkout] render", {
-    items: products.length,
-    deliveryError: deliveryError || null,
-    checkOutError,
-    loading,
-  });
   // Variants restricted for this address.
   const undeliverableVariantIds = new Set(
     (checkoutData?.undeliverable_variant_ids ??
@@ -933,12 +913,26 @@ const CheckoutUI = () => {
         ]
       : []),
     ...paymentMethodKeys
-      .filter((m) => setting?.payment_setting?.[m.key] === "1")
+      .filter(
+        (m) =>
+          setting?.payment_setting?.[m.key] === "1" &&
+          isGatewayAllowedForCurrency(m.key, currencyCode),
+      )
       .map((m) => ({ value: m.label, label: t(m.label) || m.label })),
   ];
   const selectedPayment = paymentOptions.find(
     (o) => o.value === checkout?.selectedPaymentMethod,
   );
+  // Quick-mode ETA, same source and unit rule the header uses.
+  const quickEta =
+    shopMode === "quick" && !isPickupMode
+      ? deliveryTime ||
+        `${
+          setting?.setting?.web_settings?.delivery_time ||
+          setting?.setting?.delivery_time ||
+          10
+        } ${t("minutes")}`
+      : null;
   const itemCount = products.reduce(
     (sum, p) => sum + Number(p?.variants?.[0]?.quantity ?? p?.qty ?? 0),
     0,
@@ -1061,267 +1055,9 @@ const CheckoutUI = () => {
     </div>
   );
 
-  if (loading) return <CheckoutSkeleton />;
-  if (paymentLoading) return <CheckoutSkeleton />;
-
-  return (
-    <section className="bodyBackgroundColor min-h-screen pb-40 md:pb-28 lg:pb-8">
-      {/* Coupon-applied confetti burst — full-screen, non-blocking, plays once. */}
-      {showCouponBurst && couponBurstAnimation && (
-        <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center">
-          <Lottie
-            className="h-full w-full"
-            animationData={couponBurstAnimation}
-            loop={false}
-            style={{ transform: "scale(1.3)" }}
-          />
-        </div>
-      )}
-      <div className="container py-4 md:py-8">
-        {/* page heading */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl primaryLightBack primaryColor dark:text-white flex items-center justify-center shrink-0">
-              <FiShoppingBag size={20} />
-            </span>
-            <div>
-              <h1 className="font-bold text-2xl md:text-3xl leading-tight">
-                {t("checkout")}
-              </h1>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-12 gap-4 md:gap-6 items-start">
-          {/* ---------- LEFT ---------- */}
-          <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 md:gap-6">
-            {/* Delivery / Pickup toggle, only when pickup is available. */}
-            {(checkoutData?.pickup_available != null
-              ? checkoutData.pickup_available === 1
-              : city?.pickup_available === 1) && (
-              <DeliveryTypeToggle
-                active={checkoutData?.delivery_type ?? checkout?.deliveryType}
-                onChange={handleDeliveryTypeChange}
-                showFallbackNote={
-                  !checkOutError &&
-                  !deliveryTypeFetching &&
-                  !!checkoutData?.delivery_type &&
-                  checkoutData.delivery_type !== checkout?.deliveryType
-                }
-                fallbackReason={checkoutData?.pickup?.unavailable_reason}
-              />
-            )}
-
-            {checkoutData?.delivery_type === "pickup" ? (
-              <>
-              <PickupStoreCard pickup={checkoutData?.pickup} />
-
-              {/* Pickup billing: saved address or inline fields. */}
-              {/* No overflow-hidden: the address 3-dot menu must escape. */}
-              <div className="bodyBackgroundColor cardBorder !rounded-lg shadow-sm">
-                <div className="flex items-center justify-between gap-3 p-4 md:p-5 border-b">
-                  <SectionHeader
-                    icon={<FiCreditCard size={18} />}
-                    title={t("billing_details") || "Billing Details"}
-                  />
-                  {address?.allAddresses?.length > 0 && !showManualBilling && (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1.5 text-sm font-semibold primaryColor dark:text-white shrink-0 hover:opacity-80 transition"
-                      onClick={() => setShowManualBilling(true)}
-                    >
-                      <FiPlus size={16} />
-                      {t("add_new_address") || "Add New Address"}
-                    </button>
-                  )}
-                  {showManualBilling && address?.allAddresses?.length > 0 && (
-                    <button
-                      type="button"
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full primaryLightBack px-3 py-1.5 text-xs font-bold primaryColor transition-opacity hover:opacity-80"
-                      onClick={() => setShowManualBilling(false)}
-                    >
-                      <FiChevronLeft size={14} className="shrink-0" />
-                      {t("choose_saved_address") || "Choose a saved address"}
-                    </button>
-                  )}
-                </div>
-
-                <div className="p-4 md:p-5">
-                  {!showManualBilling && address?.allAddresses?.length > 0 && (
-                    addressGrid
-                  )}
-
-                  {!showManualBilling && !(address?.allAddresses?.length > 0) && (
-                    <AddAddressTile label={t("add_new_address") || "Add New Address"} onClick={() => setShowManualBilling(true)} />
-                  )}
-
-                  {/* Inline billing fields (sent as billing_* params). */}
-                  {showManualBilling && (
-                    <BillingFields billingDetails={billingDetails} className="flex flex-col gap-3.5" />
-                  )}
-                </div>
-              </div>
-              </>
-            ) : (
-              /* Delivery Address */
-              <div className="bodyBackgroundColor cardBorder !rounded-lg shadow-sm">
-                <div className="flex justify-between items-center gap-3 p-4 md:p-5 border-b">
-                  <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-                    <SectionHeader
-                      icon={<FiMapPin size={18} />}
-                      title={t("delivery_address")}
-                    />
-                  </div>
-                  {address?.allAddresses?.length > 0 && (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1.5 text-sm font-semibold primaryColor dark:text-white shrink-0 hover:opacity-80 transition"
-                      onClick={() => {
-                        setIsAddressSelected(false);
-                        setShowAddAddres(true);
-                      }}
-                    >
-                      <FiPlus size={16} />
-                      {t("add_address")}
-                    </button>
-                  )}
-                </div>
-
-                <div className="p-4 md:p-5">
-                  {address?.allAddresses?.length > 0 ? (
-                    addressGrid
-                  ) : (
-                    <AddAddressTile label={t("add_address")} onClick={() => {
-                        setIsAddressSelected(false);
-                        setShowAddAddres(true);
-                      }} />
-                  )}
-
-                  {/* Undeliverable address banner. */}
-                  {deliveryError && (
-                    <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3.5 py-2.5">
-                      <FiMapPin
-                        size={16}
-                        className="text-red-500 shrink-0 mt-0.5"
-                      />
-                      <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                        {deliveryError}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Billing details (delivery only). */}
-            {checkoutData?.delivery_type !== "pickup" && (
-            <div className="bodyBackgroundColor cardBorder !rounded-lg shadow-sm overflow-hidden">
-              <label className="flex items-center justify-between gap-3 p-4 md:p-5 cursor-pointer">
-                <SectionHeader
-                  icon={<FiCreditCard size={18} />}
-                  title={t("billing_details") || "Billing Details"}
-                />
-                <span className="flex items-center gap-2 text-sm font-semibold textColor">
-                  {t("billing_same_as_shipping") || "Same as shipping address"}
-                  <Checkbox
-                    checked={billingDetails.billing.sameAsShipping}
-                    onCheckedChange={(checked) =>
-                      billingDetails.setSameAsShipping(checked === true)
-                    }
-                    className="primaryColorBorder data-[state=checked]:primaryBackColor"
-                  />
-                </span>
-              </label>
-              {!billingDetails.billing.sameAsShipping && (
-                <BillingFields billingDetails={billingDetails} className="flex flex-col gap-3.5 p-4 md:p-5 border-t" />
-              )}
-            </div>
-            )}
-
-            {/* Your Cart */}
-            <div className="bodyBackgroundColor cardBorder !rounded-lg shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between gap-3 p-4 md:p-5">
-                <SectionHeader
-                  icon={<FiShoppingBag size={18} />}
-                  title={t("your_cart")}
-                  count={`${itemCount} ${t("items")}`}
-                />
-              </div>
-              <div className="flex flex-col">
-                {products.map((product) => (
-                  <CheckoutItemRow
-                    key={product?.variant_id || product?.id}
-                    product={product}
-                    money={money}
-                    maxCartItemsCount={setting?.setting?.max_cart_items_count}
-                    otherLinesQty={
-                      itemCount -
-                      Number(
-                        product?.variants?.[0]?.quantity ?? product?.qty ?? 0,
-                      )
-                    }
-                    onCommitQty={handleCommitQty}
-                    onRemoveUnits={handleRemoveUnits}
-                    isUndeliverable={undeliverableVariantIds.has(
-                      String(
-                        product?.variants?.[0]?.id ?? product?.variant_id,
-                      ),
-                    )}
-                  />
-                ))}
-                {products.length === 0 && (
-                  <p className="text-sm SecondaryTextColor p-5 border-t">
-                    {t("no_data_found")}
-                  </p>
-                )}
-
-                {/* Delivery instruction (quick only). */}
-                {shopMode === "quick" && products.length > 0 && <OrderNotes />}
-
-                {/* Optional buyer tax registration, frozen onto the invoice. */}
-                {buyerTaxField.enabled && products.length > 0 && (
-                  <BuyerTaxDetails
-                    label={buyerTaxField.label}
-                    validate={buyerTaxField.validate}
-                    className="border-t p-4 md:px-5"
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Frequently bought together (cross-sell) */}
-            <RecommendationStrip
-              id="cross"
-              title={t("frequently_bought_together")}
-              products={crossSellItems}
-            />
-
-            {/* Upgrade your order (upsell) */}
-            <RecommendationStrip
-              id="upsell"
-              title={t("upgrade_your_order")}
-              products={upSellItems}
-            />
-          </div>
-
-          {/* ---------- RIGHT ---------- */}
-          <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 md:gap-6 lg:sticky lg:top-24 lg:self-start">
-            {/* Order summary (includes payment method). */}
-            <div className="bodyBackgroundColor cardBorder !rounded-lg shadow-sm overflow-hidden">
-              <div className="p-4 md:p-5 border-b">
-                <span className="font-bold text-lg md:text-xl flex items-center gap-2">
-                  <FiTag size={18} className="primaryColor dark:text-white" />
-                  {t("order_summary")}
-                </span>
-              </div>
-              <div className="px-4 md:px-5 py-4 md:py-5 flex flex-col gap-3">
-                {!checkOutError && checkoutData?.unlock_message && (
-                  <UnlockCouponNudge
-                    code={checkoutData?.unlock_promo_code}
-                    message={checkoutData?.unlock_message}
-                  />
-                )}
-
+  // Money rows, shared by the desktop summary card and the mobile sheet.
+  const summaryRows = (
+    <>
                 <Row
                   label={
                     <>
@@ -1448,6 +1184,449 @@ const CheckoutUI = () => {
                     }
                   />
                 )}
+    </>
+  );
+
+  if (loading) return <CheckoutSkeleton />;
+  if (paymentLoading) return <CheckoutSkeleton />;
+
+  // Nothing to check out — the empty-cart state, not a page of blank sections.
+  if (!orderPlaced && products.length === 0) {
+    return (
+      <section className="bodyBackgroundColor min-h-screen">
+        <div className="container flex items-center justify-center py-16">
+          <div className="flex flex-col items-center justify-center gap-2">
+            <ThemedSvg
+              src={NoCartData}
+              alt="No Cart Data"
+              className="w-3/4 max-w-[280px] object-contain"
+            />
+            <h1 className="py-2 text-center text-[22px] font-bold">
+              {t("empty_cart_list_message")}
+            </h1>
+            <p className="text-center text-xs font-bold">
+              {t("empty_cart_list_description")}
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push(zoneHref("/products"))}
+              className="primaryBackColor rounded-sm p-1 font-bold text-white"
+            >
+              {t("empty_cart_list_button_name")}
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bodyBackgroundColor min-h-screen pb-32 md:pb-28 lg:pb-8">
+      {/* Coupon-applied confetti burst — full-screen, non-blocking, plays once. */}
+      {showCouponBurst && couponBurstAnimation && (
+        <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center">
+          <Lottie
+            className="h-full w-full"
+            animationData={couponBurstAnimation}
+            loop={false}
+            style={{ transform: "scale(1.3)" }}
+          />
+        </div>
+      )}
+      <div className="container py-4 md:py-8">
+        {/* page heading */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl primaryLightBack primaryColor dark:text-white flex items-center justify-center shrink-0">
+              <FiShoppingBag size={20} />
+            </span>
+            <div>
+              <h1 className="font-bold text-2xl md:text-3xl leading-tight">
+                {t("checkout")}
+              </h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-12 gap-4 md:gap-6 items-start">
+          {/* ---------- LEFT ---------- */}
+          <div className="col-span-12 lg:col-span-8 flex flex-col gap-4 md:gap-6">
+            {/* Savings lead the page on mobile, like the app; the summary
+                column carries the same banner from lg up. */}
+            {totalSaved > 0 && (
+              <div className="lg:hidden">
+                <SavingsBanner amountText={money(totalSaved)} />
+              </div>
+            )}
+
+            {/* Delivery / Pickup toggle, only when pickup is available. */}
+            {(checkoutData?.pickup_available != null
+              ? checkoutData.pickup_available === 1
+              : city?.pickup_available === 1) && (
+              <DeliveryTypeToggle
+                active={checkoutData?.delivery_type ?? checkout?.deliveryType}
+                onChange={handleDeliveryTypeChange}
+                showFallbackNote={
+                  !checkOutError &&
+                  !deliveryTypeFetching &&
+                  !!checkoutData?.delivery_type &&
+                  checkoutData.delivery_type !== checkout?.deliveryType
+                }
+                fallbackReason={checkoutData?.pickup?.unavailable_reason}
+              />
+            )}
+
+            {checkoutData?.delivery_type === "pickup" ? (
+              <>
+              <PickupStoreCard pickup={checkoutData?.pickup} />
+
+              {/* Pickup billing: saved address or inline fields. */}
+              {/* No overflow-hidden: the address 3-dot menu must escape. */}
+              <div className="bodyBackgroundColor cardBorder !rounded-lg shadow-sm">
+                <div className="flex items-center justify-between gap-3 p-4 md:p-5 border-b">
+                  <SectionHeader
+                    icon={<FiCreditCard size={18} />}
+                    title={t("billing_details") || "Billing Details"}
+                  />
+                  {address?.allAddresses?.length > 0 && !showManualBilling && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 text-sm font-semibold primaryColor dark:text-white shrink-0 hover:opacity-80 transition"
+                      onClick={() => setShowManualBilling(true)}
+                    >
+                      <FiPlus size={16} />
+                      {t("add_new_address") || "Add New Address"}
+                    </button>
+                  )}
+                  {showManualBilling && address?.allAddresses?.length > 0 && (
+                    <button
+                      type="button"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full primaryLightBack px-3 py-1.5 text-xs font-bold primaryColor transition-opacity hover:opacity-80"
+                      onClick={() => setShowManualBilling(false)}
+                    >
+                      <FiChevronLeft size={14} className="shrink-0" />
+                      {t("choose_saved_address") || "Choose a saved address"}
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-4 md:p-5">
+                  {!showManualBilling && address?.allAddresses?.length > 0 && (
+                    addressGrid
+                  )}
+
+                  {!showManualBilling && !(address?.allAddresses?.length > 0) && (
+                    <AddAddressTile label={t("add_new_address") || "Add New Address"} onClick={() => setShowManualBilling(true)} />
+                  )}
+
+                  {/* Inline billing fields (sent as billing_* params). */}
+                  {showManualBilling && (
+                    <BillingFields billingDetails={billingDetails} className="flex flex-col gap-3.5" />
+                  )}
+                </div>
+              </div>
+              </>
+            ) : (
+              /* Delivery Address */
+              <div
+                id="ck-address"
+                className="max-lg:hidden bodyBackgroundColor cardBorder !rounded-lg shadow-sm scroll-mt-24"
+              >
+                <div className="flex justify-between items-center gap-3 p-4 md:p-5 border-b">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                    <SectionHeader
+                      icon={<FiMapPin size={18} />}
+                      title={t("delivery_address")}
+                    />
+                  </div>
+                  {address?.allAddresses?.length > 0 && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 text-sm font-semibold primaryColor dark:text-white shrink-0 hover:opacity-80 transition"
+                      onClick={() => {
+                        setIsAddressSelected(false);
+                        setShowAddAddres(true);
+                      }}
+                    >
+                      <FiPlus size={16} />
+                      {t("add_address")}
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-4 md:p-5">
+                  {address?.allAddresses?.length > 0 ? (
+                    addressGrid
+                  ) : (
+                    <AddAddressTile label={t("add_address")} onClick={() => {
+                        setIsAddressSelected(false);
+                        setShowAddAddres(true);
+                      }} />
+                  )}
+
+                  {/* Undeliverable address banner. */}
+                  {deliveryError && (
+                    <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3.5 py-2.5">
+                      <FiMapPin
+                        size={16}
+                        className="text-red-500 shrink-0 mt-0.5"
+                      />
+                      <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                        {deliveryError}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Billing details (delivery only). */}
+            {checkoutData?.delivery_type !== "pickup" && (
+            <div
+              className={`bodyBackgroundColor cardBorder !rounded-lg shadow-sm overflow-hidden ${
+                billingDetails.billing.sameAsShipping ? "max-lg:hidden" : ""
+              }`}
+            >
+              {/* Mobile keeps this tick in the bottom bar, not here. */}
+              <label className="hidden lg:flex items-center justify-between gap-3 p-4 md:p-5 cursor-pointer">
+                <SectionHeader
+                  icon={<FiCreditCard size={18} />}
+                  title={t("billing_details") || "Billing Details"}
+                />
+                <span className="flex items-center gap-2 text-sm font-semibold textColor">
+                  {t("billing_same_as_shipping") || "Same as shipping address"}
+                  <Checkbox
+                    checked={billingDetails.billing.sameAsShipping}
+                    onCheckedChange={(checked) =>
+                      billingDetails.setSameAsShipping(checked === true)
+                    }
+                    className="primaryColorBorder data-[state=checked]:primaryBackColor"
+                  />
+                </span>
+              </label>
+              {!billingDetails.billing.sameAsShipping && (
+                <BillingFields billingDetails={billingDetails} className="flex flex-col gap-3.5 p-4 md:p-5 border-t" />
+              )}
+            </div>
+            )}
+
+            {/* Your Cart */}
+            <div className="bodyBackgroundColor cardBorder !rounded-lg shadow-sm overflow-hidden">
+              <div className="hidden lg:flex items-center justify-between gap-3 p-4 md:p-5">
+                <SectionHeader
+                  icon={<FiShoppingBag size={18} />}
+                  title={t("your_cart")}
+                  count={`${itemCount} ${t("items")}`}
+                />
+              </div>
+
+              {/* Mobile header reads like the app: ETA over the shipment line. */}
+              <div className="lg:hidden flex items-center gap-3 p-4">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <FiClock size={20} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-base font-bold textColor leading-tight">
+                    {quickEta
+                      ? `${t("delivery_in")} ${quickEta}`
+                      : t("your_cart")}
+                  </p>
+                  <p className="mt-0.5 text-xs SecondaryTextColor">
+                    {t("shipment_of") || "Shipment of"} {itemCount}{" "}
+                    {t("items")}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                {products.map((product) => (
+                  <CheckoutItemRow
+                    key={product?.variant_id || product?.id}
+                    product={product}
+                    money={money}
+                    maxCartItemsCount={setting?.setting?.max_cart_items_count}
+                    otherLinesQty={
+                      itemCount -
+                      Number(
+                        product?.variants?.[0]?.quantity ?? product?.qty ?? 0,
+                      )
+                    }
+                    onCommitQty={handleCommitQty}
+                    onRemoveUnits={handleRemoveUnits}
+                    appStyle={isCompact}
+                    isUndeliverable={undeliverableVariantIds.has(
+                      String(
+                        product?.variants?.[0]?.id ?? product?.variant_id,
+                      ),
+                    )}
+                  />
+                ))}
+                {products.length === 0 && (
+                  <p className="text-sm SecondaryTextColor p-5 border-t">
+                    {t("no_data_found")}
+                  </p>
+                )}
+
+                {/* Delivery instruction (quick only). */}
+                {shopMode === "quick" && products.length > 0 && <OrderNotes />}
+
+                {/* Optional buyer tax registration, frozen onto the invoice. */}
+                {buyerTaxField.enabled && products.length > 0 && (
+                  <BuyerTaxDetails
+                    label={buyerTaxField.label}
+                    validate={buyerTaxField.validate}
+                    className="border-t p-4 md:px-5"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Frequently bought together (cross-sell) */}
+            <RecommendationStrip
+              id="cross"
+              title={t("frequently_bought_together")}
+              products={crossSellItems}
+            />
+
+            {/* Upgrade your order (upsell) */}
+            <RecommendationStrip
+              id="upsell"
+              title={t("upgrade_your_order")}
+              products={upSellItems}
+            />
+          </div>
+
+          {/* ---------- RIGHT ---------- */}
+          <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 md:gap-6 lg:sticky lg:top-24 lg:self-start">
+            {/* Mobile stack — one card per thing, like the app. */}
+            <div className="lg:hidden flex flex-col gap-3">
+              {!checkOutError &&
+                (checkoutData?.unlock_message ||
+                  checkoutData?.promocode_details) && (
+                  <div className="bodyBackgroundColor cardBorder !rounded-2xl p-3.5 flex flex-col gap-3">
+                    {checkoutData?.unlock_message && (
+                      <UnlockCouponNudge
+                        code={checkoutData?.unlock_promo_code}
+                        message={checkoutData?.unlock_message}
+                      />
+                    )}
+                    {checkoutData?.promocode_details && (
+                      <AppliedCouponTicket
+                        code={
+                          cart?.promo_code?.promo_code ||
+                          checkoutData?.promocode_details?.promo_code
+                        }
+                        amountText={money(promoDiscount)}
+                        isCashback={isCashbackCoupon}
+                        isFreeDelivery={isFreeDeliveryCoupon}
+                        onRemove={handleRemoveDiscount}
+                      />
+                    )}
+                  </div>
+                )}
+
+              <button
+                type="button"
+                onClick={() => setShowCouponCode(true)}
+                className="bodyBackgroundColor cardBorder !rounded-2xl flex items-center gap-3 px-3.5 py-3.5 text-start"
+              >
+                <FiTag size={18} className="shrink-0 primaryColor" />
+                <span className="min-w-0 flex-1 text-[14px] font-semibold textColor">
+                  {t("view_all_coupons") || "View all coupons"}
+                </span>
+                {rtl ? <FiChevronLeft size={16} /> : <FiChevronRight size={16} />}
+              </button>
+
+              {Number(user?.balance) >= 1 && !isPickupMode && (
+                <label className="bodyBackgroundColor cardBorder !rounded-2xl flex items-center gap-3 px-3.5 py-3.5">
+                  <Checkbox
+                    checked={!!checkout?.isWalletChecked}
+                    onCheckedChange={handleWalletToggle}
+                    className="h-5 w-5 primaryColorBorder data-[state=checked]:primaryBackColor"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-semibold textColor">
+                      {t("wallet") || "Wallet"}
+                    </span>
+                    <span className="block text-[12px] SecondaryTextColor">
+                      {t("available_balance") || "Available Balance"}{" "}
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {money(user?.balance)}
+                      </span>
+                    </span>
+                  </span>
+                  <RiWallet3Line size={20} className="shrink-0 SecondaryTextColor" />
+                </label>
+              )}
+
+              <div className="bodyBackgroundColor cardBorder !rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowTotals((open) => !open)}
+                  className="flex w-full items-center gap-3 px-3.5 py-3.5 text-start"
+                  aria-expanded={showTotals}
+                >
+                  <FiFileText size={18} className="shrink-0 primaryColor" />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-[14px] font-semibold textColor">
+                        {t("total_amount") || "Total Amount"}
+                      </span>
+                      {totalSaved > 0 && (
+                        <span className="text-[12px] SecondaryTextColor line-through">
+                          {money(payable + totalSaved)}
+                        </span>
+                      )}
+                      <span className="text-[15px] font-bold textColor">
+                        <AnimatedNumber value={payable} format={money} />
+                      </span>
+                    </span>
+                    {totalSaved > 0 && (
+                      <span className="mt-1 inline-block rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        {t("you_saved")} {money(totalSaved)}
+                      </span>
+                    )}
+                  </span>
+                  <FiChevronDown
+                    size={16}
+                    className={`shrink-0 transition-transform ${showTotals ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {showTotals && (
+                  <div className="flex flex-col gap-3 border-t px-3.5 py-3.5">
+                    {summaryRows}
+                    <CouponInput
+                      value={discountInput}
+                      onChange={setDiscountInput}
+                      onApply={handleApplyDiscount}
+                      onViewAll={() => setShowCouponCode(true)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {isCashbackCoupon && promoDiscount > 0 && (
+                <CashbackBanner amountText={money(promoDiscount)} />
+              )}
+              {walletCoversFull && <WalletCoversBanner />}
+            </div>
+
+            {/* Order summary (includes payment method). */}
+            <div className="max-lg:hidden bodyBackgroundColor cardBorder !rounded-lg shadow-sm overflow-hidden">
+              <div className="p-4 md:p-5 border-b">
+                <span className="font-bold text-lg md:text-xl flex items-center gap-2">
+                  <FiTag size={18} className="primaryColor dark:text-white" />
+                  {t("order_summary")}
+                </span>
+              </div>
+              <div className="px-4 md:px-5 py-4 md:py-5 flex flex-col gap-3">
+                {!checkOutError && checkoutData?.unlock_message && (
+                  <UnlockCouponNudge
+                    code={checkoutData?.unlock_promo_code}
+                    message={checkoutData?.unlock_message}
+                  />
+                )}
+
+                {summaryRows}
 
                 <CouponInput
                   value={discountInput}
@@ -1471,7 +1650,9 @@ const CheckoutUI = () => {
                 </div>
 
                 {totalSaved > 0 && (
-                  <SavingsBanner amountText={money(totalSaved)} />
+                  <div className="hidden lg:block">
+                    <SavingsBanner amountText={money(totalSaved)} />
+                  </div>
                 )}
                 {isCashbackCoupon && promoDiscount > 0 && (
                   <CashbackBanner amountText={money(promoDiscount)} />
@@ -1481,10 +1662,12 @@ const CheckoutUI = () => {
                 {walletCoversFull ? (
                   <WalletCoversBanner />
                 ) : (
-                  <PaymentMethodButton
-                    selected={selectedPayment}
-                    onClick={() => setShowPaymentPicker(true)}
-                  />
+                  <div className="max-lg:hidden">
+                    <PaymentMethodButton
+                      selected={selectedPayment}
+                      onClick={() => setShowPaymentPicker(true)}
+                    />
+                  </div>
                 )}
 
                 {/* Desktop place order (mobile uses bottom bar). */}
@@ -1504,26 +1687,114 @@ const CheckoutUI = () => {
         </div>
       </div>
 
-      {/* Sticky mobile place-order bar */}
-      <div className="lg:hidden fixed bottom-[60px] md:bottom-0 left-0 right-0 z-50 bodyBackgroundColor border-t shadow-[0_-2px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center gap-3">
-        <div className="flex flex-col min-w-0">
-          <span className="text-lg font-bold textColor leading-tight">
-            <AnimatedNumber value={payable} format={money} />
-          </span>
-          <span className="text-[11px] SecondaryTextColor uppercase tracking-wide">
-            {t("total_with_vat")}
-          </span>
-        </div>
-        <button
-          type="button"
-          {...closedProps}
-          className={`ml-auto flex-1 max-w-[60%] relative overflow-hidden primaryBackColor text-white font-bold py-3 !rounded-xl flex items-center justify-center gap-1 transition duration-150 active:scale-[0.97] motion-reduce:active:scale-100 ${placeOrderBusy ? "disabled:cursor-wait" : placeOrderDisabledClass} ${closedProps.className ?? ""}`}
-          disabled={placeOrderDisabled}
-          aria-busy={checkoutLoading}
-          onClick={handlePlaceOrder}
-        >
-          {placeOrderInner}
-        </button>
+      {/* Sticky mobile bar — app order: address, billing tick, one CTA. */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bodyBackgroundColor border-t shadow-[0_-2px_12px_rgba(0,0,0,0.08)] pb-[env(safe-area-inset-bottom)]">
+        {!isPickupMode && (
+          <div className="flex items-center gap-2.5 px-4 pt-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl primaryLightBack primaryColor">
+              <HiOutlineOfficeBuilding size={18} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] textColor">
+                {t("delivering_to") || "Delivering to"}{" "}
+                <span className="font-bold capitalize">
+                  {checkout?.address?.type || t("address")}
+                </span>
+              </p>
+              <p className="truncate text-[12px] SecondaryTextColor">
+                {checkout?.address
+                  ? formatAddress(checkout.address)
+                  : t("add_address")}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 text-[13px] font-bold primaryColor"
+              onClick={() => setShowAddressSheet(true)}
+            >
+              {t("change")}
+            </button>
+          </div>
+        )}
+
+        {!isPickupMode && (
+          <label className="flex items-center gap-2.5 px-4 pt-2.5 pb-2.5 text-[13px] font-medium textColor">
+            <Checkbox
+              checked={billingDetails.billing.sameAsShipping}
+              onCheckedChange={(checked: boolean | "indeterminate") =>
+                billingDetails.setSameAsShipping(checked === true)
+              }
+              className="h-5 w-5 primaryColorBorder data-[state=checked]:primaryBackColor"
+            />
+            {t("billing_same_as_shipping") || "Billing address same as shipping"}
+          </label>
+        )}
+
+        {/* No method yet → one wide CTA; after that, pay-using + Place Order. */}
+        {!walletCoversFull && !selectedPayment ? (
+          <div className="px-4 pb-3">
+            <button
+              type="button"
+              className="w-full primaryBackColor text-white text-[15px] font-bold py-3 !rounded-xl flex items-center justify-center transition duration-150 active:scale-[0.97] motion-reduce:active:scale-100"
+              onClick={() => setShowPaymentPicker(true)}
+            >
+              {t("select_payment_method")}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 px-4 pb-3">
+            {/* Shown with a covering wallet too — the picker holds the wallet
+                toggle, so this stays the way back to another method. */}
+            <button
+              type="button"
+              onClick={() => setShowPaymentPicker(true)}
+              className="flex h-12 min-w-0 max-w-[40%] flex-1 flex-col justify-center gap-0.5 text-start"
+            >
+              <span className="flex items-center gap-1 text-[10px] font-bold uppercase leading-none SecondaryTextColor">
+                {t("pay_using") || "Pay using"}
+                <FiChevronUp size={11} className="shrink-0" />
+              </span>
+              <span className="truncate text-[13px] font-bold leading-none textColor">
+                {walletCoversFull
+                  ? t("wallet") || "Wallet"
+                  : selectedPayment?.label}
+              </span>
+            </button>
+            <button
+              type="button"
+              {...closedProps}
+              className={`flex h-12 flex-[2] items-center justify-between gap-3 overflow-hidden primaryBackColor text-white px-4 !rounded-xl transition duration-150 active:scale-[0.97] motion-reduce:active:scale-100 ${placeOrderBusy ? "disabled:cursor-wait" : placeOrderDisabledClass} ${closedProps.className ?? ""}`}
+              disabled={placeOrderDisabled}
+              aria-busy={checkoutLoading}
+              onClick={handlePlaceOrder}
+            >
+              {placeOrderBusy ? (
+                <span className="flex flex-1 items-center justify-center gap-1.5 text-[15px] font-bold">
+                  {placeOrderInner}
+                </span>
+              ) : (
+                <>
+                  <span className="flex flex-col items-start gap-0.5">
+                    <span className="text-[15px] font-extrabold leading-none">
+                      <AnimatedNumber value={payable} format={money} />
+                    </span>
+                    <span className="text-[9px] font-semibold uppercase leading-none opacity-80">
+                      {t("total")}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1 text-[15px] font-bold">
+                    {t("place_order")}
+                    {rtl ? (
+                      <FiChevronLeft size={16} />
+                    ) : (
+                      <FiChevronRight size={16} />
+                    )}
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {showAddAddres && (
@@ -1540,6 +1811,80 @@ const CheckoutUI = () => {
           setShowCouponCode={setShowCouponCode}
         />
       )}
+
+      {/* Mobile address picker — the page itself carries no address card. */}
+      <Sheet
+        open={showAddressSheet}
+        onOpenChange={(open: boolean) => setShowAddressSheet(open)}
+      >
+        <SheetContent
+          side="bottom"
+          className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden rounded-t-3xl border-0 bodyBackgroundColor p-0"
+        >
+          <div className="flex justify-center pt-2.5 pb-1">
+            <span className="h-1 w-10 rounded-full bg-gray-300 dark:bg-zinc-700" />
+          </div>
+          <SheetTitle className="flex items-center justify-between gap-3 px-4 pb-3 pt-1 text-start">
+            <span className="text-base font-bold textColor">
+              {t("delivery_address")}
+            </span>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-sm font-semibold primaryColor"
+              onClick={() => {
+                setIsAddressSelected(false);
+                setShowAddAddres(true);
+                setShowAddressSheet(false);
+              }}
+            >
+              <FiPlus size={16} />
+              {t("add_address")}
+            </button>
+          </SheetTitle>
+          <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-5">
+            {address?.allAddresses?.length > 0 ? (
+              <div className="flex flex-col divide-y divide-gray-100 dark:divide-zinc-800">
+                {address.allAddresses.map((addr: any) => (
+                  <AddressCard
+                    key={addr?.id}
+                    plain
+                    addr={addr}
+                    active={checkout?.address?.id === addr?.id}
+                    onSelect={() => {
+                      handleSelectAddress(addr);
+                      setShowAddressSheet(false);
+                    }}
+                    onEdit={() => {
+                      handleEditAddress(addr);
+                      setShowAddressSheet(false);
+                    }}
+                    onDelete={() => handleDeleteAddress(addr)}
+                    formatAddress={formatAddress}
+                  />
+                ))}
+              </div>
+            ) : (
+              <AddAddressTile
+                label={t("add_address")}
+                onClick={() => {
+                  setIsAddressSelected(false);
+                  setShowAddAddres(true);
+                  setShowAddressSheet(false);
+                }}
+              />
+            )}
+
+            {deliveryError && (
+              <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3.5 py-2.5">
+                <FiMapPin size={16} className="text-red-500 shrink-0 mt-0.5" />
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                  {deliveryError}
+                </p>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <PaymentPickerDialog
         open={showPaymentPicker}

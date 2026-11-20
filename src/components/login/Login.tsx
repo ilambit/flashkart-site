@@ -1,11 +1,12 @@
 "use client";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import Image from "next/image";
 import { t } from "@/utils/translation";
 import GoogleLogo from "@/assets/googleLogin.svg";
 import OtpInput from "react-otp-input";
-import { useDispatch, useSelector, useStore } from "react-redux";
+import { useStore } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ComponentType } from "react";
 import {
@@ -30,6 +31,12 @@ import * as api from "@/api/apiRoutes";
 import { setTokenThunk } from "@/redux/thunk/loginthunk";
 import NewUserModal from "../newusermodal/NewUserModal";
 import { loadFirebaseAuth } from "@/utils/lazyFirebaseAuth";
+import {
+  setLoginProof,
+  clearLoginProof,
+  getPhoneVerificationToken,
+  type LoginProof,
+} from "@/utils/loginProof";
 import {
   getRecaptchaVerifier,
   clearRecaptchaVerifier,
@@ -103,9 +110,9 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
       longitude: liveCity?.longitude ?? defaultCity?.longitude,
     };
   };
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const fcmToken = useSelector((state: any) => state.User?.fcm_token);
-  const dispatch = useDispatch();
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const fcmToken = useAppSelector((state) => state.User?.fcm_token);
+  const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -113,18 +120,19 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
   const resolveFcmToken = async (): Promise<string> => {
     if (fcmToken) return fcmToken;
     const { fetchToken } = await loadFirebaseAuth();
-    return (await fetchToken(dispatch, { prompt: true })) || fcmToken;
+    return ((await fetchToken(dispatch, { prompt: true })) || fcmToken) as string;
   };
 
   const [userName, setUserName] = useState("");
   const [showNewUser, setShowNewUser] = useState(false);
   const [isOTP, setIsOTP] = useState(false);
   const emailOtpResendRef = useRef<(() => void) | null>(null);
+  const emailVerifyPasswordRef = useRef<string>("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [otp, setOtp] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [countryCode, setCountryCode] = useState<string | null>(null);
-  const [inputValue, setInputValue] = useState<string | null>(null);
+  const [, setInputValue] = useState<string | null>(null);
   const [inputType, setInputType] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -137,7 +145,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
   const [error, setError] = useState("");
   const [touched, setTouched] = useState({ email: false, password: false });
   const [loginRejected, setLoginRejected] = useState(false);
-  const [userAuthType, setUserAuthType] = useState("");
+  const [, setUserAuthType] = useState("");
   const [showRegister, setShowRegister] = useState(false);
   const [showForgetPassword, setShowForgetPassword] = useState(false);
   const [phonePassword, setPhonePassword] = useState("");
@@ -319,10 +327,6 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
             setOtpDisabled(false);
             return;
           }
-          console.log(
-            "[otp] calling signInWithPhoneNumber",
-            phoneNumberWithoutSpaces,
-          );
           const { auth, signInWithPhoneNumber } = await loadFirebaseAuth();
           // Timeout guard: a stuck v2 challenge otherwise hangs forever with no error.
           const confirmationResult = await Promise.race([
@@ -339,13 +343,11 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
               ),
             ),
           ]);
-          console.log("[otp] signInWithPhoneNumber resolved");
           (window as any).confirmationResult = confirmationResult;
           setTimer(90);
           setIsOTP(true);
           setLoading(false);
         } catch (error: any) {
-          console.log("[otp] send failed:", error?.code, error?.message, error);
           // Spent verifier can't be reused — clear it so retry gets a fresh one.
           clearRecaptchaVerifier();
           setPhoneNumber("");
@@ -369,7 +371,6 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
             setLoading(false);
           }
         } catch (error: any) {
-          console.log("[otp] send failed:", error?.code, error?.message, error);
           setPhoneNumber("");
           setPhoneNumberWithoutCountryCode("");
           setRawPhone("");
@@ -395,11 +396,14 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
         const user = await (window as any).confirmationResult.confirm(otp);
         dispatch(setAuthId({ data: user.user.uid }));
         setUid(user.user.uid);
+        const firebaseIdToken = await user.user.getIdToken();
+        setLoginProof({ firebaseIdToken });
         await loginApiCall(
           user.user,
           phoneNumberWithoutCountryCode,
           await resolveFcmToken(),
           "phone",
+          { firebaseIdToken },
         );
         setLoading(false);
       } catch (error) {
@@ -417,6 +421,10 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
           response?.status == 1 &&
           response?.message == "otp_valid_but_user_invalid"
         ) {
+          setLoginProof({
+            otp,
+            phoneVerificationToken: getPhoneVerificationToken(response),
+          });
           setShowNewUser(true);
           setShowLogin(false);
           setIsOTP(false);
@@ -429,7 +437,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
           handleDeactivatedAccount(response);
           return;
         } else if (response?.status == 1) {
-          await (dispatch as any)(setTokenThunk(response?.data?.access_token));
+          await dispatch(setTokenThunk(response?.data?.access_token));
           // getCurrentUser returns false if the account is deactivated (already logged out/toasted).
           if (!(await getCurrentUser())) return;
           dispatch(setAuthType({ data: "phone" }));
@@ -437,10 +445,6 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
             dispatch(setIsGuest({ data: false }));
           }
           await handleFetchSetting();
-          console.log("[bulk-merge] otp-verify:", {
-            hasGuestItems: hasGuestItems(),
-            buckets: getLiveGuestBuckets(),
-          });
           if (hasGuestItems()) {
             await addToBulkCart(response?.data.access_token);
           }
@@ -459,7 +463,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
           setLoading(false);
         }
       } catch (error) {
-        console.log("error", error);
+        console.error("[Login]", error);
       }
     }
   };
@@ -475,7 +479,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
         typeof res.data === "string" ? JSON.parse(atob(res.data)) : res.data;
       dispatch(setSetting({ data: parsedSetting }));
     } catch (error) {
-      console.log("error", error);
+      console.error("[Login]", error);
     }
   };
 
@@ -515,7 +519,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
         dispatch(setCart({ data: null }));
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[Login]", error);
     }
   };
 
@@ -524,6 +528,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
     id: string | null | undefined,
     fcm: string,
     type: string,
+    proof: LoginProof = {},
   ) => {
     setLoading(true);
     try {
@@ -537,24 +542,20 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
         country_code: countryCode,
         phoneAuthType: isPhoneAuthPassword,
         password: phonePassword,
+        firebaseIdToken: proof.firebaseIdToken,
+        otp: proof.otp,
       });
       // Matches status_code if present, else falls back to legacy message.
       const apiCode =
         normalizeApiCode(res?.status_code) || normalizeApiCode(res?.message);
-      console.log("[login] api response:", {
-        type,
-        status: res?.status,
-        status_code: res?.status_code,
-        message: res?.message,
-        apiCode,
-      });
       if (res.status === 1) {
         // Deactivated accounts also return status:1 with no access_token — check first.
         if (isUserDeactivated(res)) {
           handleDeactivatedAccount(res);
           return;
         } else {
-          await (dispatch as any)(setTokenThunk(res?.data?.access_token));
+          clearLoginProof();
+          await dispatch(setTokenThunk(res?.data?.access_token));
           if (!(await getCurrentUser())) return;
           dispatch(setAuthType({ data: type }));
           if (res?.data?.user?.status == 1) {
@@ -562,13 +563,6 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
           }
           await handleFetchSetting();
           // TEMP diagnostic — shows why the merge may skip.
-          console.log("[bulk-merge] loginApiCall:", {
-            type,
-            resStatus: res?.status,
-            userStatus: res?.data?.user?.status,
-            hasGuestItems: hasGuestItems(),
-            buckets: getLiveGuestBuckets(),
-          });
           // Merge on any successful login with guest items (some types omit user.status).
           if (hasGuestItems()) {
             await addToBulkCart(res?.data.access_token);
@@ -585,6 +579,9 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
           setShowLogin(false);
           setShowRegister(false);
         }
+      } else if (apiCode == "identity_not_verified") {
+        toast.error(t("identity_not_verified"));
+        setLoading(false);
       } else if (apiCode == "user_exist_with_email") {
         toast.error(t("user_exist_with_email"));
         setLoading(false);
@@ -676,7 +673,6 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
       toast.success(t("login_success"));
       return true;
     } catch (error) {
-      console.log("error", error);
       return false;
     }
   };
@@ -695,6 +691,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
   const handleHideLogin = async () => {
     clearRecaptchaVerifier();
     emailOtpResendRef.current = null;
+    emailVerifyPasswordRef.current = "";
     setIsOTP(false);
     setShowLogin(false);
     setError("");
@@ -717,14 +714,14 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
       const result = await signInWithPopup(auth, provider);
       const user = result?.user;
       dispatch(setAuthType({ data: "google" }));
-      console.log("[bulk-merge] google login → loginApiCall", {
-        buckets: getLiveGuestBuckets(),
-      });
+      const firebaseIdToken = await user.getIdToken();
+      setLoginProof({ firebaseIdToken });
       await loginApiCall(
         user,
         user?.providerData[0].email,
         await resolveFcmToken(),
         "google",
+        { firebaseIdToken },
       );
     } catch (error: any) {
       if (error?.message?.includes("auth/popup-closed-by-user")) {
@@ -795,7 +792,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
           handleDeactivatedAccount(res);
           return;
         } else {
-          const tokenSet = await (dispatch as any)(
+          await dispatch(
             setTokenThunk(res?.data?.access_token),
           );
           if (!(await getCurrentUser())) return;
@@ -812,7 +809,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
             }
             await fetchCart();
           } catch (postLoginErr) {
-            console.log("post-login step failed:", postLoginErr);
+            console.error("[Login]", postLoginErr);
           }
           setError("");
           setPasswordError("");
@@ -841,7 +838,6 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
       }
     } catch (err) {
       // Network failure: no server message, but don't leave the button stuck loading.
-      console.log("error", err);
       setLoading(false);
       toast.error(t("something_went_wrong"));
     }
@@ -850,23 +846,23 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
   const handleEmailVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await api.verifyEmail({ email: email, code: otp });
+      const res = await api.verifyEmail({
+        email: email,
+        code: otp,
+        password: emailVerifyPasswordRef.current || password,
+      });
       if (isUserDeactivated(res)) {
         handleDeactivatedAccount(res);
         return;
       }
       if (res.status == 1) {
-        const tokenSet = await (dispatch as any)(setTokenThunk(res?.data?.access_token));
+        await dispatch(setTokenThunk(res?.data?.access_token));
         if (!(await getCurrentUser())) return;
         dispatch(setAuthType({ data: "email" }));
         if (res?.data?.user?.status == 1) {
           dispatch(setIsGuest({ data: false }));
         }
         await handleFetchSetting();
-        console.log("[bulk-merge] email-verify:", {
-          hasGuestItems: hasGuestItems(),
-          buckets: getLiveGuestBuckets(),
-        });
         if (hasGuestItems()) {
           await addToBulkCart(res?.data?.access_token);
         }
@@ -879,7 +875,7 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
         toast.error(res.message);
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[Login]", error);
     }
   };
 
@@ -887,10 +883,6 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
     try {
       // Merges BOTH channels (quick + ecommerce) at login, read live to avoid stale closure.
       const { quick, ecommerce } = getLiveGuestBuckets();
-      console.log("[bulk-merge] guest buckets at login:", {
-        quick: quick.length,
-        ecommerce: ecommerce.length,
-      });
       if (quick.length === 0 && ecommerce.length === 0) return;
       // A bucket holding addons must go as items — the CSV pair would drop them.
       const quickHasAddons = rowsHaveAddons(quick);
@@ -925,10 +917,9 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
         dispatch(clearAllGuestCarts());
         dispatch(setCartSubTotal({ data: response.sub_total }));
       } else {
-        console.log("Error while adding bulk products");
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[Login]", error);
     }
   };
 
@@ -1411,8 +1402,9 @@ export function Login({ showLogin, setShowLogin, setMobileActiveKey }: LoginProp
         setTimer={setTimer}
         setOtpDisabled={setOtpDisabled}
         setLoginError={setError}
-        setEmailOtpResend={(fn) => {
+        setEmailOtpResend={(fn, pwd) => {
           emailOtpResendRef.current = fn;
+          emailVerifyPasswordRef.current = pwd || "";
         }}
       />
       <ForgetPasswordModal

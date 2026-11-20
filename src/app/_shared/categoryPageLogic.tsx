@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import axios from "axios";
 import { getWithEtag } from "@/api/etagCache";
 import CategoriesPages from "@/components/pagecomponents/CategoriesPages";
 import LanguageCodesSeed from "@/app/LanguageCodesSeed";
@@ -115,8 +114,8 @@ const loadCategorySlugData = cache(
           };
         }
       } catch (err: any) {
+        console.error("[categoryPageLogic]", err);
         // Never fail the page on this — the client refetches on mount.
-        console.log("[categories] children fetch failed:", err?.message);
       }
     }
     try {
@@ -239,7 +238,10 @@ export async function CategoryPageBody({ slug, lang, zone }: { slug: string; lan
             : null,
         ]}
       >
-        <CategoriesPages initialCategory={data.initialCategory} />
+        <CategoriesPages
+          initialCategory={data.initialCategory}
+          subCategoryPage={slug !== "all"}
+        />
       </QuerySeed>
     </div>
   );

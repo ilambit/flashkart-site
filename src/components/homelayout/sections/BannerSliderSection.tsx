@@ -1,5 +1,7 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { setBlockSource } from "@/redux/slices/productFilterSlice";
 import React, {
   useState,
   useEffect,
@@ -8,12 +10,12 @@ import React, {
   useRef,
 } from "react";
 import Image from "next/image";
-import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { pickDeviceImage, toCssAspectRatio } from "@/utils/helperFunction";
 import { resolveIdCsvToSlugCsv } from "@/utils/categorySlugResolver";
+import { withListingTitle } from "@/utils/urlProductFilters";
 import useZoneHref from "@/hooks/useZoneHref";
 import useUrlProductFilters from "@/hooks/useUrlProductFilters";
 import useNavClick from "@/hooks/useNavClick";
@@ -105,9 +107,10 @@ const BannerSliderSection = ({
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const { run: runNavClick } = useNavClick();
   const openProductsRedirect = useProductsRedirect(resolveCategoryTree);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
 
   const config = block?.config || {};
   const items = (block?.items || []).filter((item: any) =>
@@ -316,7 +319,8 @@ const BannerSliderSection = ({
   const hasRedirect = (item: any) =>
     (item?.redirect_type === "url" && item?.redirect_url) ||
     ((item?.redirect_type === "product" ||
-      item?.redirect_type === "category") &&
+      item?.redirect_type === "category" ||
+      item?.redirect_type === "brand") &&
       item?.redirect_id) ||
     (item?.redirect_type === "page" && item?.redirect_slug) ||
     // An all-blank filter set is valid: it opens the unfiltered listing.
@@ -328,12 +332,28 @@ const BannerSliderSection = ({
     } else if (item?.redirect_type === "product" && item?.redirect_id) {
       router.push(zoneHref(`/product/${item.redirect_id}`));
     } else if (item?.redirect_type === "category" && item?.redirect_id) {
+      dispatch(setBlockSource());
       const tree = (await resolveCategoryTree?.()) || [];
       const slug =
         resolveIdCsvToSlugCsv(tree, item.redirect_id.toString()) ||
         item.redirect_id.toString();
       const qs = new URLSearchParams(
-        buildQueryPatch({ category_id: slug }),
+        withListingTitle(
+          buildQueryPatch({ category_id: slug }),
+          item?.redirect_title,
+        ),
+      ).toString();
+      const dest = zoneHref("/products");
+      router.push(qs ? `${dest}?${qs}` : dest);
+    } else if (item?.redirect_type === "brand" && item?.redirect_id) {
+      dispatch(setBlockSource());
+      const qs = new URLSearchParams(
+        withListingTitle(
+          buildQueryPatch({
+            brand_ids: [Number.parseInt(String(item.redirect_id), 10)],
+          }),
+          item?.redirect_title,
+        ),
       ).toString();
       const dest = zoneHref("/products");
       router.push(qs ? `${dest}?${qs}` : dest);
@@ -390,7 +410,7 @@ const BannerSliderSection = ({
                             src={src}
                             alt="Banner image"
                             priority={priority && index === 0}
-                            fetchPriority={priority && index === 0 ? "high" : undefined}
+                            fetchPriority={priority && index === 0 ? "high" : "low"}
                             className={`absolute inset-0 w-full h-full object-cover ${borderRadius == null ? S.rounded : ""}`}
                             style={
                               borderRadius == null ? undefined : { borderRadius }

@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
 import MaitanceImage from "@/assets/empty-state/maintainance.svg";
 import ThemedSvg from "@/components/notfound/ThemedSvg";
 import { t } from "@/utils/translation";
@@ -78,8 +78,8 @@ export interface MaintanceModeProps {
 
 /** Full-screen maintenance mode component with countdown */
 const MaintanceMode = ({ message, endAt }: MaintanceModeProps) => {
-  const setting = useSelector((state: any) => state.Setting);
-  const logo = setting?.setting?.web_settings?.web_logo;
+  const setting = useAppSelector((state) => state.Setting);
+  const logo = setting?.setting?.web_settings?.web_logo || "/logo.png";
 
   const endTime = useMemo(() => parseUtc(endAt), [endAt]);
 

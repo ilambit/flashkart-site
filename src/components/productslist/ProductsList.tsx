@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { m, LayoutGroup } from "framer-motion";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -7,7 +8,6 @@ import BreadCrumb from "../breadcrumb/BreadCrumb";
 import { t } from "@/utils/translation";
 import Filter from "../productFilter/ProductFilter";
 import * as api from "@/api/apiRoutes";
-import { useDispatch, useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import {
   setCategoryBreadcrumb,
@@ -45,12 +45,13 @@ import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder
 import { LuArrowUpDown, LuCheck, LuChevronDown, LuChevronLeft, LuLayoutGrid, LuList, LuSlidersHorizontal } from "react-icons/lu";
 import { IoCartOutline } from "react-icons/io5";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import NoOrderSvg from "@/assets/empty-state/no-product.svg";
-import NotFound from "@/components/notfound/NotFound";
+import EmptyFilterState from "./EmptyFilterState";
 import { productsKey, productsFilterKeyPart } from "@/utils/queryKeys";
 import useIsHydrated from "@/hooks/useIsHydrated";
 import useZoneCityPending from "@/hooks/useZoneCityPending";
 import useInViewFetch from "@/hooks/useInViewFetch";
+import useProductsViewMode from "@/hooks/useProductsViewMode";
+import useListScrollRestore from "@/hooks/useListScrollRestore";
 import { useProductFilters } from "@/hooks/useProductFilters";
 import { ColumnsIcon } from "@/components/icons";
 
@@ -77,10 +78,10 @@ interface ProductsListProps {
 
 const Products = ({ initialProducts = null }: ProductsListProps) => {
   const total_products_per_page = 12;
-  const dispatch = useDispatch();
-  const cart = useSelector((state: any) => state.Cart);
-  const city = useSelector((state: any) => state.City);
-  const setting = useSelector((state: any) => state.Setting.setting);
+  const dispatch = useAppDispatch();
+  const cart = useAppSelector((state) => state.Cart);
+  const city = useAppSelector((state) => state.City);
+  const setting = useAppSelector((state) => state.Setting.setting);
   // Gate persisted redux/localStorage reads on this, else hydration mismatch (#418).
   const isHydrated = useIsHydrated();
   // This page hides the site header on mobile, so it carries its own cart
@@ -107,36 +108,38 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
   const {
     filter: urlFilter,
     isReady: routerIsReady,
+    isDefaultUnfilteredView,
     setCategoryId,
     setSort,
+    clearAll: clearUrlFilters,
     buildQueryPatch,
   } = useUrlProductFilters();
   const router = useRouter();
   const zoneHref = useZoneHref();
   // Redux browse and block source filters
-  const persistedListingSource = useSelector(
-    (state: any) => state.ProductFilter.listing_source,
+  const persistedListingSource = useAppSelector(
+    (state) => state.ProductFilter.listing_source,
   );
-  const persistedCategorySlug = useSelector(
-    (state: any) => state.ProductFilter.category_slug,
+  const persistedCategorySlug = useAppSelector(
+    (state) => state.ProductFilter.category_slug,
   );
-  const persistedDataSource = useSelector(
-    (state: any) => state.ProductFilter.data_source,
+  const persistedDataSource = useAppSelector(
+    (state) => state.ProductFilter.data_source,
   );
-  const persistedManualProductIds = useSelector(
-    (state: any) => state.ProductFilter.manual_product_ids,
+  const persistedManualProductIds = useAppSelector(
+    (state) => state.ProductFilter.manual_product_ids,
   );
-  const persistedBlockSourceId = useSelector(
-    (state: any) => state.ProductFilter.block_source_id,
+  const persistedBlockSourceId = useAppSelector(
+    (state) => state.ProductFilter.block_source_id,
   );
-  const persistedBlockCategoryIds = useSelector(
-    (state: any) => state.ProductFilter.block_category_ids,
+  const persistedBlockCategoryIds = useAppSelector(
+    (state) => state.ProductFilter.block_category_ids,
   );
-  const persistedBlockBrandIds = useSelector(
-    (state: any) => state.ProductFilter.block_brand_ids,
+  const persistedBlockBrandIds = useAppSelector(
+    (state) => state.ProductFilter.block_brand_ids,
   );
-  const persistedFilterMode = useSelector(
-    (state: any) => state.ProductFilter.filter_mode,
+  const persistedFilterMode = useAppSelector(
+    (state) => state.ProductFilter.filter_mode,
   );
   const listing_source = isHydrated ? persistedListingSource : "all";
   const category_slug = isHydrated ? persistedCategorySlug : "";
@@ -172,7 +175,7 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
       filter_mode,
     ],
   );
-  const persistedShopMode = useSelector((state: any) => state.ShopMode.mode);
+  const persistedShopMode = useAppSelector((state) => state.ShopMode.mode);
   const shopMode = isHydrated ? persistedShopMode : SHOP_MODE_SSR_DEFAULT;
   const [minPrice, setMinPrice] = useState<number | null>(null);
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
@@ -189,21 +192,7 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
     };
   }, []);
   // Grid/list view mode state persisted in localStorage
-  const [viewMode, setViewMode] = useState<number | "list">(5);
-  const viewModeRestored = useRef(false);
-  useEffect(() => {
-    const saved = window.localStorage.getItem("productsViewMode");
-    viewModeRestored.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (saved === "list") return setViewMode("list");
-    const n = Number(saved);
-    if ([2, 3, 4, 5].includes(n)) setViewMode(n);
-  }, []);
-  useEffect(() => {
-    // Don't overwrite the saved value before it's restored.
-    if (!viewModeRestored.current) return;
-    window.localStorage.setItem("productsViewMode", String(viewMode));
-  }, [viewMode]);
+  const [viewMode, setViewMode] = useProductsViewMode(true);
   const isList = viewMode === "list";
   const gridCols = isList ? 4 : viewMode;
   // Last grid choice, so the mobile toggle returns to it after list view.
@@ -212,10 +201,10 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
     if (!isList) lastGridColsRef.current = viewMode as number;
   }, [viewMode, isList]);
   const [debouncedSearch, setDebouncedSearch] = useState(filter?.search);
-  const { selectedLanguage } = useSelector((state: any) => state.Language);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
-  const categoryBreadcrumb = useSelector(
-    (state: any) => state.ProductFilter.categoryBreadcrumb,
+  const { selectedLanguage } = useAppSelector((state) => state.Language);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
+  const categoryBreadcrumb = useAppSelector(
+    (state) => state.ProductFilter.categoryBreadcrumb,
   );
 
   const hideFilter = false;
@@ -271,7 +260,9 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
   });
 
   const resolvedCategoryIdCsv = isValidCategoryId
-    ? resolveSlugCsvToIdCsv(fullCategoryTree ?? [], filter.category_id)
+    ? resolveSlugCsvToIdCsv(fullCategoryTree ?? [], filter.category_id, {
+        expand: filter?.data_source !== "category",
+      })
     : "";
 
   const finalCategoryIds = isValidCategoryId ? resolvedCategoryIdCsv : null;
@@ -373,9 +364,9 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
             data_source: "manual",
             manual_product_ids: filter.manual_product_ids,
           }
-        : filter?.data_source &&
-          filter.data_source !== "category" &&
-          filter.data_source !== "brand" && {
+        : filter?.data_source && {
+            // "category" included: the API reads category_id as a subtree with
+            // it, so a parent-category banner isn't an exact match any more.
             data_source: filter.data_source,
           }),
       // URL category wins over a stale block_source_id.
@@ -456,6 +447,9 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
     // Returning to a key already fetched (coords settling, filter toggled back)
     // serves the cache instead of firing the same request again.
     staleTime: 1000 * 30,
+    // Keep every loaded page while the user is off on a product page, so coming
+    // back restores the same rows the saved scroll offset was measured against.
+    gcTime: 1000 * 60 * 30,
   });
 
   // Deduplicate products from paginated response
@@ -716,6 +710,22 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
     }
     return rows;
   }, [adaptedProducts, selectedAttrGroups]);
+
+  // Back from a product lands where the user left off, not at the top.
+  const scrollRestoreKey = useMemo(
+    () =>
+      JSON.stringify(
+        productsKey({
+          filter: productsFilterKeyPart(filter, debouncedSearch),
+          categoryIds: effectiveCategoryIds,
+          latitude,
+          longitude,
+          shopMode,
+        }),
+      ),
+    [filter, debouncedSearch, effectiveCategoryIds, latitude, longitude, shopMode],
+  );
+  useListScrollRestore(scrollRestoreKey, !isLoading && displayCards.length > 0);
 
   useEffect(() => {
     prevCountRef.current = displayCards.length;
@@ -1191,10 +1201,10 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
                           </button>
                         </div>
                       ) : productResult?.length <= 0 ? (
-                        <NotFound
-                          image={NoOrderSvg}
-                          title={t("no_products_found")}
+                        <EmptyFilterState
                           className="col-span-full"
+                          hasFilters={!isDefaultUnfilteredView}
+                          onClearAll={() => clearUrlFilters()}
                         />
                       ) : (
                         // eslint-disable-next-line react-hooks/refs
@@ -1219,7 +1229,7 @@ const Products = ({ initialProducts = null }: ProductsListProps) => {
                               {isList ? (
                                 <ListViewProductCard product={adapted} />
                               ) : (
-                                <VerticleProductCard product={adapted} />
+                                <VerticleProductCard product={adapted} eager={index < 4} />
                               )}
                             </m.div>
                           );

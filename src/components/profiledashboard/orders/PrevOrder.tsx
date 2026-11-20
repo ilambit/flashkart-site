@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
+import { useEffect, useState, useRef } from "react";
 import { t } from "@/utils/translation";
 import PrevOrderCard from "./PrevOrderCard";
 import * as api from "@/api/apiRoutes";
@@ -16,8 +16,8 @@ import useInViewFetch from "@/hooks/useInViewFetch";
 
 const PrevOrder = () => {
   // Map shopMode ("allShop" -> "ecommerce") to active channel tab
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
-  const availableModes = useSelector((state: any) => state.ShopMode.availableModes);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
+  const availableModes = useAppSelector((state) => state.ShopMode.availableModes);
   const [activeChannel, setActiveChannel] = useState<string>(
     shopMode === "allShop" ? "ecommerce" : "quick",
   );
@@ -77,7 +77,6 @@ const PrevOrder = () => {
     } catch (error: any) {
       setLoading(false);
       setLoadingMore(false);
-      console.log("Error", error);
     }
   };
 

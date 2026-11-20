@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
 import { t } from "@/utils/translation";
-import { sanitizeHtml } from "@/utils/sanitizeHtml";
 import * as api from "@/api/apiRoutes";
 import { formatCustomDate } from "@/lib/utils";
 import Loader from "../loader/Loader";
@@ -28,7 +27,7 @@ const SHARE_BUTTONS: ShareEntry[] = [
   [WhatsappShareButton, WhatsappIcon, "WhatsApp"],
 ];
 
-const BlogDetail = () => {
+const BlogDetail = ({ descriptionHtml }: { descriptionHtml: string }) => {
   const pathname = usePathname();
   const params = useParams();
   const slug = params?.slug as string | undefined;
@@ -48,7 +47,6 @@ const BlogDetail = () => {
       const filteredBlogs = blogs?.data?.filter((blog: any) => blog.id !== blogId);
       setRecentBlogs(filteredBlogs);
     } catch (error) {
-      console.log("error", error);
     }
   };
 
@@ -56,7 +54,6 @@ const BlogDetail = () => {
     try {
       await api.setBlogCount({ blogId: blogData?.id });
     } catch (error) {
-      console.log("error", error);
     }
   };
 
@@ -79,7 +76,6 @@ const BlogDetail = () => {
     } catch (error) {
       setLoading(false);
       setNotFound(true);
-      console.log("error", error);
     }
   };
 
@@ -161,9 +157,7 @@ const BlogDetail = () => {
           <div
             style={{ maxWidth: "64rem" }}
             className="mx-auto w-full !text-start api-html-content"
-            dangerouslySetInnerHTML={sanitizeHtml(
-              blog?.translations?.description || blog?.description,
-            )}
+            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
           ></div>
           {tags.length > 0 && (
             <div style={{ maxWidth: "64rem" }} className="mx-auto w-full">

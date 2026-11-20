@@ -1,10 +1,10 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import * as api from "@/api/apiRoutes";
-import { useSelector, useDispatch } from "react-redux";
 import { t } from "@/utils/translation";
 import {
   addtoGuestCart,
@@ -57,19 +57,19 @@ const ProductDetailModal = ({
   const zoneHref = useZoneHref();
   const { guard: guardClosed, closedProps } = useStoreClosed();
   const rtl = useIsRtl();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
 
-  const setting = useSelector((state: any) => state.Setting);
-  const city = useSelector((state: any) => state.City.city);
-  const cityStatus = useSelector((state: any) => state.City.status);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
-  const cart = useSelector((state: any) => state.Cart);
-  const favoriteProductIds = useSelector(
-    (state: any) => state.Favorite.favouriteProductIds,
+  const setting = useAppSelector((state) => state.Setting);
+  const city = useAppSelector((state) => state.City.city);
+  const cityStatus = useAppSelector((state) => state.City.status);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
+  const cart = useAppSelector((state) => state.Cart);
+  const favoriteProductIds = useAppSelector(
+    (state) => state.Favorite.favouriteProductIds,
   );
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
-  const user = useSelector((state: any) => state.User);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
+  const user = useAppSelector((state) => state.User);
 
   // Ref tracking favorite IDs to avoid unnecessary refetches
   const favoriteProductIdsRef = useRef(favoriteProductIds);
@@ -148,7 +148,6 @@ const ProductDetailModal = ({
             : [];
         setRecentlyViewedProducts(list);
       } catch (error) {
-        console.log("Error", error);
       }
     })();
     return () => {
@@ -359,7 +358,6 @@ const ProductDetailModal = ({
         );
       }
     } catch (error: any) {
-      console.log("notify me error", error);
       toast.error(
         error?.response?.data?.message ||
           t("something_went_wrong") ||
@@ -542,7 +540,6 @@ const ProductDetailModal = ({
           }
         }
       } catch (error) {
-        console.log("Error", error);
       }
     }
   };
@@ -596,7 +593,6 @@ const ProductDetailModal = ({
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("error", error);
     }
   };
 
@@ -624,7 +620,6 @@ const ProductDetailModal = ({
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("error", error);
     }
   };
 

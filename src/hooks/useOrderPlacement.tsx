@@ -1,13 +1,16 @@
 "use client";
 
+import { persistor } from "@/redux/store";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { useSelector, useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import * as api from "@/api/apiRoutes";
 import { toast } from "react-toastify";
+import { getPaystackEmail, paystackOrderRef } from "@/utils/paystack";
 import { t } from "@/utils/translation";
 import useZoneHref from "@/hooks/useZoneHref";
+import usePaymentResult, { isCartBranchChanged } from "@/hooks/usePaymentResult";
 import { clearCartPromo, clearPrescriptions } from "@/redux/slices/cartSlice";
 import {
   setBuyerBusinessName,
@@ -64,16 +67,19 @@ export interface PlaceOrderParams {
 }
 
 // Shared order placement and payment gateway handling for checkout and quick-checkout.
-export default function useOrderPlacement() {
-  const dispatch = useDispatch();
+export default function useOrderPlacement({
+  onCartBranchChanged,
+}: { onCartBranchChanged?: () => void } = {}) {
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const zoneHref = useZoneHref();
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const countrySetting = useSelector((state: any) => state.CountrySetting?.countrySetting);
-  const paymentSetting = useSelector((state: any) => state.Setting.payment_setting);
-  const user = useSelector((state: any) => state.User.user);
-  const city = useSelector((state: any) => state.City.city);
-  const cart = useSelector((state: any) => state.Cart);
+  const { handlePaymentResult } = usePaymentResult();
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const countrySetting = useAppSelector((state) => state.CountrySetting?.countrySetting);
+  const paymentSetting = useAppSelector((state) => state.Setting.payment_setting);
+  const user = useAppSelector((state) => state.User.user);
+  const city = useAppSelector((state) => state.City.city);
+  const cart = useAppSelector((state) => state.Cart);
   const { currencyCode } = useCurrency();
 
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -97,7 +103,6 @@ export default function useOrderPlacement() {
       const row = Array.isArray(res?.data) ? res.data[0] : res?.data;
       return row?.id ?? row?.order_id ?? null;
     } catch (error) {
-      console.log("[useOrderPlacement] fetchLatestOrderId failed", error);
       return null;
     }
   };
@@ -152,6 +157,7 @@ export default function useOrderPlacement() {
             return router.push(statusUrl(method, orderId));
           }
           setPaymentLoading(false);
+          if (handlePaymentResult(response, { orderId, method })) return;
           toast.error(response.message);
         } catch (error) {
           console.error("[useOrderPlacement] razorpay transaction error", error);
@@ -184,10 +190,10 @@ export default function useOrderPlacement() {
       const { default: PaystackPop }: any = await import("@paystack/inline-js");
       const handler = PaystackPop.setup({
         key: paymentSetting?.paystack_public_key,
-        email: user?.email,
-        amount: parseFloat(String(amount)) * 100,
+        email: getPaystackEmail(user, setting?.support_email),
+        amount: Math.round(parseFloat(String(amount)) * 100),
         currency: paymentSetting?.paystack_currency_code,
-        ref: `${Date.now()}`,
+        ref: paystackOrderRef(orderId, user?.id),
         label: setting?.support_email,
         onClose: () => api.deleteOrder({ orderId }),
         callback: async (res: any) => {
@@ -204,16 +210,18 @@ export default function useOrderPlacement() {
               return router.push(statusUrl(method, orderId));
             }
             setPaymentLoading(false);
+            if (handlePaymentResult(response, { orderId, method })) return;
             toast.error(response.message);
           } catch (error) {
-            console.log("[useOrderPlacement] paystack error", error);
+            console.error("[useOrderPlacement] paystack transaction error", error);
             setPaymentLoading(false);
           }
         },
       });
       handler.openIframe();
     } catch (error) {
-      console.log("[useOrderPlacement] paystack setup error", error);
+      console.error("[useOrderPlacement] paystack setup error", error);
+      toast.error(t("something_went_wrong"));
     }
   };
 
@@ -247,7 +255,11 @@ export default function useOrderPlacement() {
       return;
     }
 
-    if (method === "phonepe") dispatch(setPhonePeCheckoutDetails(response?.data));
+    if (method === "phonepe") {
+      dispatch(setPhonePeCheckoutDetails({ ...response?.data, type: "order", order_id: orderId }));
+      // Persist is throttled; flush before leaving for PhonePe
+      await persistor.flush();
+    }
 
     if (method === "razorpay") {
       return handleRazorpayPayment(
@@ -398,6 +410,9 @@ export default function useOrderPlacement() {
         buyerBusinessName,
       });
       if (response?.status != 1) {
+        setPaymentLoading(false);
+        if (handlePaymentResult(response)) return false;
+        if (isCartBranchChanged(response)) onCartBranchChanged?.();
         toast.error(
           getPickupErrorMessage(response?.message) ||
             response?.message ||

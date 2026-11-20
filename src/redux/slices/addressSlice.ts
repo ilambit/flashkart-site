@@ -1,9 +1,9 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface AddressState {
-    selectedEditAddress: any[];
+    selectedEditAddress: any;
     allAddresses: any[];
-    selectedAddress: any[];
+    selectedAddress: any;
 }
 
 const initialState: AddressState = {
@@ -16,13 +16,13 @@ export const addressReducer = createSlice({
     name: "address",
     initialState,
     reducers: {
-        setSelectedAddresForEdit: (state, action: PayloadAction<{ data: any[] }>) => {
+        setSelectedAddresForEdit: (state, action: PayloadAction<{ data: any }>) => {
             state.selectedEditAddress = action.payload.data
         },
         setAllAddresses: (state, action: PayloadAction<{ data: any[] }>) => {
             state.allAddresses = action.payload.data
         },
-        setSelectedAddress: (state, action: PayloadAction<{ data: any[] }>) => {
+        setSelectedAddress: (state, action: PayloadAction<{ data: any }>) => {
 
             state.selectedAddress = action.payload.data
         }

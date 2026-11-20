@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useAppSelector } from "@/redux/hooks";
+import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/navigation";
@@ -6,7 +7,6 @@ import { Navigation } from "swiper/modules";
 import { t } from "@/utils/translation";
 import VerticleProductCard from "../productcards/VerticleProductCard";
 import * as api from "@/api/apiRoutes";
-import { useSelector } from "react-redux";
 import { IoMdArrowBack, IoMdArrowForward } from "react-icons/io";
 import useDir from "@/hooks/useDir";
 import useIsRtl from "@/hooks/useIsRtl";
@@ -18,8 +18,8 @@ interface SimilarProductsProps {
 const SimilarProducts = ({ productId }: SimilarProductsProps) => {
   const rtl = useIsRtl();
   const dir = useDir();
-  const lat = useSelector((state: any) => state.City.city?.latitude);
-  const lng = useSelector((state: any) => state.City.city?.longitude);
+  const lat = useAppSelector((state) => state.City.city?.latitude);
+  const lng = useAppSelector((state) => state.City.city?.longitude);
 
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
   const [totalSimilarProducts, setTotalSimilarProducts] = useState(0);
@@ -48,7 +48,6 @@ const SimilarProducts = ({ productId }: SimilarProductsProps) => {
       setSimilarProducts(list);
       setTotalSimilarProducts(response.total);
     } catch (error) {
-      console.log("Error", error);
     }
   };
 

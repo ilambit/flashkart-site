@@ -1,20 +1,19 @@
-import React, { useState } from 'react'
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useState } from 'react'
 import {
     Dialog,
     DialogContent,
     DialogOverlay
 } from "@/components/ui/dialog"
 import { t } from "@/utils/translation"
-import { useSelector } from 'react-redux'
 import * as api from "@/api/apiRoutes"
 import { clearAllFilter } from "@/redux/slices/productFilterSlice";
-import { logoutAuth, setJWTToken, setCurrentUser, setAuthType, } from "@/redux/slices/userSlice"
+import { logoutAuth, setJWTToken, setCurrentUser, } from "@/redux/slices/userSlice"
 import { clearCartPromo, setCart, setCartProducts, setCartSubTotal, setIsGuest } from "@/redux/slices/cartSlice"
-import { useDispatch } from 'react-redux'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { LogOut, Loader2 } from 'lucide-react'
+import { LuLogOut, LuLoaderCircle } from 'react-icons/lu'
 import useZoneHref from "@/hooks/useZoneHref";
 import useDir from "@/hooks/useDir";
 
@@ -26,13 +25,13 @@ interface LogoutModalProps {
 const LogoutModal = ({ showLogout, setShowLogout }: LogoutModalProps) => {
   const zoneHref = useZoneHref();
     const router = useRouter();
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
     const queryClient = useQueryClient();
-    const theme = useSelector((state: any) => state.Theme.theme)
-    const language = useSelector((state: any) => state.Language.selectedLanguage)
+    const theme = useAppSelector((state) => state.Theme.theme)
+    const language = useAppSelector((state) => state.Language.selectedLanguage)
     const dir = useDir()
     // Sent to the logout API so the backend unregisters THIS device from push.
-    const fcmToken = useSelector((state: any) => state.User?.fcm_token)
+    const fcmToken = useAppSelector((state) => state.User?.fcm_token)
     const [loading, setLoading] = useState(false)
 
     const handleHideLogout = () => {
@@ -67,7 +66,6 @@ const LogoutModal = ({ showLogout, setShowLogout }: LogoutModalProps) => {
                 toast.success(response.message)
             }
         } catch (error: any) {
-            console.log("Error", error)
             // Best-effort: still log out locally even if the server call failed.
             clearLocalSession()
         } finally {
@@ -81,7 +79,7 @@ const LogoutModal = ({ showLogout, setShowLogout }: LogoutModalProps) => {
             <DialogContent className="max-w-sm rounded-2xl p-6" title={t("logout_title")}>
                 <div dir={dir} className="flex flex-col items-center text-center">
                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-500/15">
-                        <LogOut className="h-6 w-6 text-red-600" />
+                        <LuLogOut className="h-6 w-6 text-red-600" />
                     </div>
 
                     <h1 className="mt-4 text-lg font-bold text-foreground">{t("logout_title")}</h1>
@@ -102,7 +100,7 @@ const LogoutModal = ({ showLogout, setShowLogout }: LogoutModalProps) => {
                             onClick={handleLogout}
                             className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
                         >
-                            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {loading && <LuLoaderCircle className="h-4 w-4 animate-spin" />}
                             {t("Ok")}
                         </button>
                     </div>

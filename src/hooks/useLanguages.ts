@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useMemo } from "react";
-import { useSelector } from "react-redux";
 import { useParams } from "next/navigation";
 import {
   parseLangPath as parseLangPathBase,
@@ -10,11 +10,11 @@ import {
 const useLanguages = () => {
   // Extract lang route parameter from active route.
   const params = useParams<{ lang?: string }>();
-  const available = useSelector(
-    (state: any) => state?.Language?.availableLanguages,
+  const available = useAppSelector(
+    (state) => state?.Language?.availableLanguages,
   );
   // Seeded language codes from SSR page properties.
-  const seededCodes = useSelector((state: any) => state?.Language?.languageCodes);
+  const seededCodes = useAppSelector((state) => state?.Language?.languageCodes);
   const routeLangParam = params?.lang;
 
   return useMemo(() => {

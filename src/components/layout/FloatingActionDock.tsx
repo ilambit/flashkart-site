@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useAppSelector } from "@/redux/hooks";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { useSelector } from "react-redux";
 import { FaArrowUp } from "react-icons/fa";
 import { BiSupport } from "react-icons/bi";
 import { LuChevronLeft, LuChevronRight, LuX } from "react-icons/lu";
@@ -32,8 +32,8 @@ const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 // Floating action dock containing Spin & Win, Support, and Back to Top
 const FloatingActionDock = () => {
   const rtl = useIsRtl();
-  const userId = useSelector((s: any) => s.User?.user?.id);
-  const setting = useSelector((s: any) => s.Setting?.setting);
+  const userId = useAppSelector((s) => s.User?.user?.id);
+  const setting = useAppSelector((s) => s.Setting?.setting);
   const spinWheelAvailable = setting?.spin_wheel_available == 1;
 
   const [scrollVisible, setScrollVisible] = useState(false);
@@ -44,6 +44,23 @@ const FloatingActionDock = () => {
     setSpinOrigin(origin ?? null);
     setSpinOpen(true);
   };
+  // Warm the panel's heavy assets before the first open so the fly-in animation
+  // is not competing with chunk parsing and image decodes on the main thread.
+  const warmedRef = useRef(false);
+  const warmSpinAssets = useCallback((segments?: any[], hubIcon?: string) => {
+    if (warmedRef.current) return;
+    warmedRef.current = true;
+    import("@/assets/confetti.json");
+    const urls = [
+      ...(segments ?? []).map((s) => s?.icon_url),
+      hubIcon,
+    ].filter(Boolean) as string[];
+    urls.forEach((src) => {
+      const img = new window.Image();
+      img.src = src;
+    });
+  }, []);
+
   const [supportOpen, setSupportOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -60,7 +77,7 @@ const FloatingActionDock = () => {
 
   // Spin wheel query & countdown state
   const isHydrated = useIsHydrated();
-  const city = useSelector((s: any) => s.City?.city);
+  const city = useAppSelector((s) => s.City?.city);
   const latitude = isHydrated ? city?.latitude : undefined;
   const longitude = isHydrated ? city?.longitude : undefined;
   const { data: spinData } = useSpinWheel({
@@ -73,6 +90,33 @@ const FloatingActionDock = () => {
   const nextSpinCountdown = useCountdown(
     outOfSpins ? spinData?.spins?.next_spin_at : null,
   );
+
+  // Prewarm the wheel art, but only after `load`: the segment icons are
+  // multi-hundred-KB each and on idle they raced the page's own LCP image for
+  // bandwidth on every route. Hover on the dock button warms it earlier.
+  useEffect(() => {
+    if (!spinData?.segments?.length) return;
+    const w = window as any;
+    const run = () =>
+      warmSpinAssets(spinData.segments, spinData?.campaign?.theme?.hub_icon_url);
+    let inner: number | undefined;
+    const schedule = () => {
+      inner = w.requestIdleCallback
+        ? w.requestIdleCallback(run, { timeout: 4000 })
+        : window.setTimeout(run, 1500);
+    };
+    if (document.readyState === "complete") {
+      schedule();
+      return () => {
+        if (inner != null) w.cancelIdleCallback?.(inner) ?? clearTimeout(inner);
+      };
+    }
+    window.addEventListener("load", schedule, { once: true });
+    return () => {
+      window.removeEventListener("load", schedule);
+      if (inner != null) w.cancelIdleCallback?.(inner) ?? clearTimeout(inner);
+    };
+  }, [spinData, warmSpinAssets]);
 
   // Recolor Lottie animation with primary color. Kept eager: the dock renders
   // on every page, so a lazy chunk showed an empty slot on first paint.
@@ -173,6 +217,12 @@ const FloatingActionDock = () => {
             <div className="relative">
               <DockButton
                 label={t("spin_and_win") || "Spin & Win"}
+                onPointerEnter={() =>
+                  warmSpinAssets(
+                    spinData?.segments,
+                    spinData?.campaign?.theme?.hub_icon_url,
+                  )
+                }
                 onClick={(e) => {
                   setMobileOpen(false);
                   openSpinFrom(originFromElement(e?.currentTarget));
@@ -313,6 +363,19 @@ const SpinWheelFlyIn = ({
   children: React.ReactNode;
 }) => {
   const [flying, setFlying] = useState(true);
+  // Start moving only after React has committed and the browser painted the
+  // panel once; otherwise the first open animates while the wheel still mounts.
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setStarted(true));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, []);
   const reduceMotion =
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -325,14 +388,18 @@ const SpinWheelFlyIn = ({
     <m.div
       className={flying ? "spinFlyIn spinFlyIn--moving" : "spinFlyIn"}
       initial={{ x: dx, y: dy, scale: 0.05, opacity: 0 }}
-      animate={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+      animate={
+        started
+          ? { x: 0, y: 0, scale: 1, opacity: 1 }
+          : { x: dx, y: dy, scale: 0.05, opacity: 0 }
+      }
       transition={{
-        x: { delay: 0.05, duration: 0.9, ease: [0.22, 1, 0.36, 1] },
-        y: { delay: 0.05, duration: 0.9, ease: [0.22, 1, 0.36, 1] },
-        scale: { delay: 0.05, duration: 0.9, ease: [0.65, 0, 0.35, 1] },
-        opacity: { delay: 0.05, duration: 0.25, ease: "easeOut" },
+        x: { duration: 0.9, ease: [0.22, 1, 0.36, 1] },
+        y: { duration: 0.9, ease: [0.22, 1, 0.36, 1] },
+        scale: { duration: 0.9, ease: [0.65, 0, 0.35, 1] },
+        opacity: { duration: 0.25, ease: "easeOut" },
       }}
-      onAnimationComplete={() => setFlying(false)}
+      onAnimationComplete={() => started && setFlying(false)}
       style={{
         transformOrigin: "center center",
         // Keep the layer promoted only while moving, then let it repaint crisply.
@@ -348,12 +415,14 @@ const SpinWheelFlyIn = ({
 const DockButton = ({
   label,
   onClick,
+  onPointerEnter,
   rtl,
   variant,
   children,
 }: {
   label: string;
   onClick: (e?: React.MouseEvent<HTMLButtonElement>) => void;
+  onPointerEnter?: () => void;
   rtl: boolean;
   variant: "filled" | "outline";
   children: React.ReactNode;
@@ -384,6 +453,8 @@ const DockButton = ({
     <button
       type="button"
       onClick={onClick}
+      onPointerEnter={onPointerEnter}
+      onFocus={onPointerEnter}
       aria-label={label}
       className={cn(
         "relative flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-transform duration-200 hover:scale-110 active:scale-95",

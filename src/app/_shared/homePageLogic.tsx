@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
-import axios from "axios";
 import { getWithEtag } from "@/api/etagCache";
 import HomePage from "@/components/pagecomponents/Homepage";
 import Custom404 from "@/components/notfound/Custom404";
@@ -152,7 +151,7 @@ const loadHomeData = cache(
           }
         }
       } catch (err: any) {
-        console.log("SSR settings fetch failed:", err?.message);
+        console.error("[homePageLogic]", err);
       }
 
       // Last-resort location fallback using first available zone centroid
@@ -167,7 +166,7 @@ const loadHomeData = cache(
             if (!linkZone) linkZone = fallback.slug ?? null;
           }
         } catch (err: any) {
-          console.log("SSR zones fallback failed:", err?.message);
+          console.error("[homePageLogic]", err);
         }
       }
 
@@ -177,7 +176,7 @@ const loadHomeData = cache(
           const linkFallback: any = await firstZoneLocation();
           linkZone = linkFallback?.slug ?? null;
         } catch (err: any) {
-          console.log("SSR link-zone fallback failed:", err?.message);
+          console.error("[homePageLogic]", err);
         }
       }
 
@@ -226,7 +225,7 @@ const loadHomeData = cache(
                   data = altRes.data;
                 }
               } catch (err: any) {
-                console.log("SSR alt-channel tab lookup failed:", err?.message);
+                console.error("[homePageLogic]", err);
               }
             }
 
@@ -247,7 +246,7 @@ const loadHomeData = cache(
                   ssrTabId = requestedId;
                 }
               } catch (err: any) {
-                console.log("SSR home_layout tab fetch failed:", err?.message);
+                console.error("[homePageLogic]", err);
               }
             }
 
@@ -263,8 +262,8 @@ const loadHomeData = cache(
             };
           }
         } catch (err: any) {
+          console.error("[homePageLogic]", err);
           // Never fail the page on this — the client refetches on mount.
-          console.log("SSR home_layout fetch failed:", err?.message);
         }
       }
 
@@ -316,7 +315,6 @@ const loadHomeData = cache(
           tabSlug: ssrTabId ? tabSlugParam : null,
         };
       } catch (error) {
-        console.log("error", error);
         // Fallback metadata payload retaining zone and language context
         return {
           notFoundPage: false,

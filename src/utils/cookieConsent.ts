@@ -19,9 +19,6 @@ export const readConsent = (): string | null => {
   }
 };
 
-export const hasAcceptedCookies = (): boolean =>
-  readConsent() === CONSENT_ACCEPTED;
-
 // Persist the choice and notify listeners in this tab.
 export const writeConsent = (
   answer: typeof CONSENT_ACCEPTED | typeof CONSENT_DECLINED,

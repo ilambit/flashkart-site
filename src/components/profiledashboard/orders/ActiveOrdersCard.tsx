@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { t } from "@/utils/translation";
 import { TbCurrentLocation } from "react-icons/tb";
 import {
@@ -23,6 +23,7 @@ import { toast } from "react-toastify";
 import useZoneHref from "@/hooks/useZoneHref";
 import useCurrency from "@/hooks/useCurrency";
 import ProductTypeTag from "../../productdetail/ProductTypeTag";
+import MobileOrderCard from "./MobileOrderCard";
 
 const STATUS_MAP: Record<number, { label: string; cls: string }> = {
   1: { label: "paymentPending", cls: "paymentPendingStatus" },
@@ -48,7 +49,7 @@ interface ActiveOrdersCardProps {
   onCancelled?: () => void;
   channel: string;
   shopMode: string;
-  availableModes: string;
+  availableModes: string | null;
 }
 
 const ActiveOrdersCard = ({ order, onCancelled, channel, shopMode, availableModes }: ActiveOrdersCardProps) => {
@@ -58,7 +59,7 @@ const ActiveOrdersCard = ({ order, onCancelled, channel, shopMode, availableMode
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [open, setOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const { currency } = useCurrency(order);
+  const { currency, decimals } = useCurrency(order);
 
   // Determine whether to display the Reorder button
   const headerMatchesTab =
@@ -111,7 +112,7 @@ const ActiveOrdersCard = ({ order, onCancelled, channel, shopMode, availableMode
   const walletPaid = Number(order?.paid_wallet ?? order?.wallet_balance ?? 0);
   const walletUsed = walletPaid > 0;
   const displayTotal = walletUsed
-    ? walletPaid + Number(order?.final_total || 0)
+    ? Number((walletPaid + Number(order?.final_total || 0)).toFixed(decimals || 2))
     : order?.final_total;
   // Format payment method label for split wallet payments
   const gatewayResidual = Number(order?.final_total || 0);
@@ -125,7 +126,17 @@ const ActiveOrdersCard = ({ order, onCancelled, channel, shopMode, availableMode
 
   return (
     <div className="px-2 pb-3">
-      <div className="flex w-full flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white shadow-sm dark:bg-zinc-900">
+      <MobileOrderCard
+        order={order}
+        currency={currency}
+        statusLabel={order?.order_status_name || t(status.label)}
+        statusCls={status.cls}
+        displayTotal={displayTotal}
+        showReorder={showReorder}
+        onReorder={() => setShowReorderModal(true)}
+        onTrack={order?.active_status == "5" && !isPickupOrder ? () => setShowLiveTracking(true) : undefined}
+      />
+      <div className="hidden md:flex w-full flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white shadow-sm dark:bg-zinc-900">
         {/* Row 1: status pill + invoice download */}
         <div className="flex items-center justify-between gap-2 px-4 pt-4">
           <div className="flex flex-wrap items-center gap-1.5 min-w-0">

@@ -1,4 +1,3 @@
-import React from 'react'
 import CountryListing from '../shop-by-country/CountryListing'
 
 const CountriesPage = () => {

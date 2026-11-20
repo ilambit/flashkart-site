@@ -37,3 +37,7 @@ export const sanitizePaymentSetting = (
 
 export { ALLOWED_KEYS as PAYMENT_SETTING_ALLOWED_KEYS };
 
+
+// Midtrans charges in IDR only (backend 1.6.0 dropped the ×1000 conversion).
+export const isGatewayAllowedForCurrency = (key: string, currencyCode?: string | null) =>
+  key !== "midtrans_payment_method" || String(currencyCode || "").toUpperCase() === "IDR";

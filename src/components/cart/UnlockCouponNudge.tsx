@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import { RiDiscountPercentFill } from "react-icons/ri";
 import { FiPlus, FiChevronDown } from "react-icons/fi";
 import { t } from "@/utils/translation";
@@ -29,7 +29,7 @@ const UnlockCouponNudge = ({
   className = "",
   bordered = true,
 }: UnlockCouponNudgeProps) => {
-  const subTotal = Number(useSelector((state: any) => state.Cart?.cartSubTotal) || 0);
+  const subTotal = Number(useAppSelector((state) => state.Cart?.cartSubTotal) || 0);
   // Code the cart just crossed the minimum for (server stops nudging it).
   const [unlocked, setUnlocked] = useState<string | null>(null);
   const prevRef = useRef<{ code?: string; subTotal: number }>({ code, subTotal });

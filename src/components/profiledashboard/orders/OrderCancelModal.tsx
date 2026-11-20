@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { RiCloseFill } from "react-icons/ri";
 import { t } from "@/utils/translation";
@@ -57,7 +57,6 @@ const OrderCancelModal = ({ open, setOpen, order, onCancelled }: OrderCancelModa
         toast.error(results.find((r) => r?.message)?.message || t("something_went_wrong"));
       }
     } catch (error: any) {
-      console.log("Error", error);
       toast.error(t("something_went_wrong"));
     } finally {
       setLoading(false);

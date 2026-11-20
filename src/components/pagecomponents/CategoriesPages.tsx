@@ -1,17 +1,26 @@
 "use client";
 
-import React, { useEffect } from 'react'
+import { useAppSelector } from "@/redux/hooks";
+import { useEffect } from 'react'
+import CategoryLayoutView from '../categories/CategoryLayoutView'
 import Category from '../categories/Category'
-import { useSelector } from 'react-redux'
 
-const CategoriesPages = ({ initialCategory = null }: { initialCategory?: any }) => {
-    const language = useSelector((state: any) => state.Language.selectedLanguage)
+const CategoriesPages = ({
+    initialCategory = null,
+    subCategoryPage = false,
+}: {
+    initialCategory?: any
+    // /categories/[slug] lists that category's children, not the builder layout
+    subCategoryPage?: boolean
+}) => {
+    const language = useAppSelector((state) => state.Language.selectedLanguage)
 
     useEffect(() => {
 
     }, [language?.id])
+    if (subCategoryPage) return <Category initialCategory={initialCategory} />
     return (
-        <Category initialCategory={initialCategory} />
+        <CategoryLayoutView initialCategory={initialCategory} />
     )
 }
 

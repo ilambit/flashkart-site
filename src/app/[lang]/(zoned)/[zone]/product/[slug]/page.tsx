@@ -149,7 +149,6 @@ const loadProductData = cache(
           };
         } catch (err: any) {
           // Never fail the page on this — the client refetches on mount.
-          console.log("SSR product fetch failed:", err?.message);
           return { resolved: zone, initialProduct: null, initialProductMeta: null };
         }
       });
@@ -227,7 +226,7 @@ const loadProductData = cache(
           });
           if (productSchema) schemaMarkup = productSchema;
         } catch (err: any) {
-          console.log("SSR product schema build failed:", err?.message);
+          console.error("[page]", err);
         }
       }
 
@@ -253,7 +252,6 @@ const loadProductData = cache(
         langDefault,
       };
     } catch (error) {
-      console.log("error", error);
       // Failed SEO fetch must not 404 — env defaults; client refetches product.
       return {
         notFoundPage: false,

@@ -1,8 +1,8 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import SectionsRenderer from "@/components/homelayout/SectionsRenderer";
 import Custom404 from "@/components/notfound/Custom404";
@@ -13,6 +13,29 @@ import useScrollThresholdFetch from "@/hooks/useScrollThresholdFetch";
 import { pageBuilderKey } from "@/utils/queryKeys";
 import { PAGE_BUILDER_SECTION_LIMIT } from "@/constants/homeLayout";
 
+// Only plain hex reaches the injected CSS
+const safeHex = (hex?: string | null) =>
+  /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test((hex || "").trim())
+    ? (hex as string).trim()
+    : null;
+
+// Readable text color when the page sets no title_color
+const contrastText = (hex?: string | null) => {
+  const safe = safeHex(hex);
+  const m = safe && /^#([0-9a-f]{6}|[0-9a-f]{3})/i.exec(safe);
+  if (!m) return null;
+  const h =
+    m[1].length === 3
+      ? m[1]
+          .split("")
+          .map((c: string) => c + c)
+          .join("")
+      : m[1];
+  const n = Number.parseInt(h, 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#111111" : "#ffffff";
+};
+
 // Server-seeded initial page data for hydration
 interface PageBuilderViewProps {
   slug: string;
@@ -20,9 +43,9 @@ interface PageBuilderViewProps {
 }
 
 const PageBuilderView = ({ slug, initialPage = null }: PageBuilderViewProps) => {
-  const city = useSelector((state: any) => state.City.city);
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const city = useAppSelector((state) => state.City.city);
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   const isHydrated = useIsHydrated();
 
   const latitude = !isHydrated
@@ -132,8 +155,19 @@ const PageBuilderView = ({ slug, initialPage = null }: PageBuilderViewProps) => 
     return <Custom404 />;
   }
 
+  // Mobile-only header recolor from the page's own theme. Unlayered <style>
+  // with an id selector beats the header's arbitrary-value utility classes.
+  const headerColor = safeHex(page?.header_color);
+  const titleColor = safeHex(page?.title_color) || contrastText(headerColor);
+  const headerCss = headerColor
+    ? `@media (max-width:767px){header#site-header{--layout-header-bg:${headerColor};--layout-header-gradient:none;--layout-header-gradient-continue:none;${
+        titleColor ? `--layout-header-text:${titleColor};` : ""
+      }}}`
+    : null;
+
   return (
     <div>
+      {headerCss && <style dangerouslySetInnerHTML={{ __html: headerCss }} />}
       <SectionsRenderer
         sections={sections}
         device={device}

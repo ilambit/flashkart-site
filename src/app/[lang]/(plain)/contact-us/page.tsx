@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import ContactUsPage from "@/components/pagecomponents/ContactUsPage";
+import CmsPage from "@/components/cms/CmsPage";
+import { getCmsHtml } from "@/utils/cmsContent";
 import { fetchSeoRow } from "@/utils/fetchSeoRow";
 import { buildPageMetadata } from "@/utils/buildMetadata";
 import { canonicalUrl, hreflangAlternates } from "@/utils/canonicalUrl";
@@ -58,6 +59,7 @@ export default async function ContactUsRoute({
   params: Params;
 }) {
   const { lang } = await params;
+  const html = await getCmsHtml({ lang, settingKey: "contact_us" });
   const [seo, { langCodes }] = await Promise.all([loadContactUsSeo(lang), loadLangInfo()]);
 
   return (
@@ -71,7 +73,7 @@ export default async function ContactUsRoute({
       )}
       {/* SEO H1 — page body has none, so visually hidden. */}
       {seo.title && <h1 className="sr-only">{seo.title}</h1>}
-      <ContactUsPage />
+      <CmsPage html={html} align="center" />
     </div>
   );
 }

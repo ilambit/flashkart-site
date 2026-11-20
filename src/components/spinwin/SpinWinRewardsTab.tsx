@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
 import { t } from "@/utils/translation";
 import useIsHydrated from "@/hooks/useIsHydrated";
 import SpinWinRewardsContent from "./SpinWinRewardsContent";
@@ -10,7 +9,7 @@ import SpinWinRewardsContent from "./SpinWinRewardsContent";
  * Profile dashboard tab for viewing rewards history.
  */
 const SpinWinRewardsTab = () => {
-  const city = useSelector((state: any) => state.City);
+  const city = useAppSelector((state) => state.City);
   const isHydrated = useIsHydrated();
   const latitude = isHydrated ? city?.city?.latitude : undefined;
   const longitude = isHydrated ? city?.city?.longitude : undefined;

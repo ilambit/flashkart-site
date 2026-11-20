@@ -1,8 +1,8 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { useAppSelector } from "@/redux/hooks";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
 import { IoCartOutline, IoChevronForward } from "react-icons/io5";
 import { t } from "@/utils/translation";
 import useZoneHref from "@/hooks/useZoneHref";
@@ -15,7 +15,7 @@ const sumQty = (list: any[]) =>
 const HIDE_ON = /\/(cart|checkout|product|profile)(\/|$)/;
 
 const MobileViewCartPill = () => {
-  const cart = useSelector((state: any) => state.Cart);
+  const cart = useAppSelector((state) => state.Cart);
   const pathname = usePathname() || "";
   const router = useRouter();
   const zoneHref = useZoneHref();
@@ -48,7 +48,9 @@ const MobileViewCartPill = () => {
   return (
     <button
       type="button"
-      onClick={() => router.push(zoneHref("/cart"))}
+      onClick={() =>
+        router.push(zoneHref(cart?.isGuest ? "/cart" : "/checkout"))
+      }
       aria-label={t("view_cart") || "View Cart"}
       className="fixed left-1/2 z-40 flex -translate-x-1/2 items-center gap-2.5 whitespace-nowrap rounded-full primaryBackColor p-1 pe-1.5 text-white shadow-[0_6px_20px_rgba(0,0,0,0.16)] cartAnimPillIn active:scale-[0.98] md:hidden"
       style={{

@@ -1,11 +1,10 @@
-import React from "react";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { LuRotateCcw } from "react-icons/lu";
 import * as api from "@/api/apiRoutes";
 import { toast } from "react-toastify";
 import { t } from "@/utils/translation";
 import { bulkCartItems, rowsHaveAddons } from "@/utils/addons";
-import { useSelector, useDispatch } from "react-redux";
 import {
   setCartProducts,
   setCartSubTotal,
@@ -27,11 +26,11 @@ const ReoderConfirmModal = ({
   order,
   orderChannel = "allShop",
 }: ReoderConfirmModalProps) => {
-  const dispatch = useDispatch();
-  const theme = useSelector((state: any) => state.Theme.theme);
-  const city = useSelector((state: any) => state.City.city);
+  const dispatch = useAppDispatch();
+  const theme = useAppSelector((state) => state.Theme.theme);
+  const city = useAppSelector((state) => state.City.city);
   // Serviceable modes for current city location
-  const availableModes = useSelector((state: any) => state.ShopMode.availableModes);
+  const availableModes = useAppSelector((state) => state.ShopMode.availableModes);
 
   const handleHideReorder = () => {
     setShowReorderModal(false);
@@ -79,7 +78,6 @@ const ReoderConfirmModal = ({
       }
     } catch (error: any) {
       // Handle request failure and hide modal
-      console.log("Error", error);
       toast.error(error?.response?.data?.message || t("something_went_wrong"));
       setShowReorderModal(false);
     }
@@ -107,7 +105,7 @@ const ReoderConfirmModal = ({
         dispatch(setCartSubTotal({ data: 0 }));
       }
     } catch (error: any) {
-      console.log("Error", error);
+      console.error("[ReoderConfirmModal]", error);
     }
   };
 

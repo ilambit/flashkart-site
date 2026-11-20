@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import pageNotFound from "@/assets/not_found_images/404.svg";
 import { t } from "@/utils/translation";

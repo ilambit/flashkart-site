@@ -6,9 +6,7 @@ const path = require("path");
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
-const port = process.env.PORT || process.env.NODE_PORT || 3000;
-const hostname = process.env.HOSTNAME || "0.0.0.0";
-
+const port = process.env.NODE_PORT || 3000;
 app.prepare().then(() => {
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
@@ -28,8 +26,8 @@ app.prepare().then(() => {
       }
     }
     handle(req, res, parsedUrl);
-  }).listen(port, hostname, (err) => {
+  }).listen(port, (err) => {
     if (err) throw err;
-    console.log(`> Ready on http://${hostname}:${port}`);
+    console.log(`> Ready on http://localhost:${port}`);
   });
 });

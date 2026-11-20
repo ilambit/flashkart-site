@@ -1,4 +1,3 @@
-import React from "react";
 import { IoMdArrowBack, IoMdArrowForward } from "react-icons/io";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation } from "swiper/modules";

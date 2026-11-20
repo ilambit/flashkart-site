@@ -1,8 +1,8 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import { t } from "@/utils/translation";
 import SearchProductRow from "@/components/search/SearchProductRow";
@@ -59,9 +59,9 @@ const ShineText = ({ text }: { text: string }) => (
 
 // Default product row shown under an empty, focused search box (Blinkit-style).
 const SearchMindProducts = ({ enabled }: { enabled: boolean }) => {
-  const latitude = useSelector((s: any) => s.City?.city?.latitude);
-  const longitude = useSelector((s: any) => s.City?.city?.longitude);
-  const shopMode = useSelector((s: any) => s.ShopMode?.mode);
+  const latitude = useAppSelector((s) => s.City?.city?.latitude);
+  const longitude = useAppSelector((s) => s.City?.city?.longitude);
+  const shopMode = useAppSelector((s) => s.ShopMode?.mode);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["search-mind-products", latitude, longitude, shopMode],

@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect } from 'react'
+import { useAppSelector } from "@/redux/hooks";
+import { useEffect } from 'react'
 import Checkout from '../checkoutpage/CheckoutUI'
 import AuthGate from '@/components/auth/AuthGate'
-import { useSelector } from 'react-redux';
 
 const CheckoutPageInner = () => {
-    const language = useSelector((state: any) => state.Language.selectedLanguage)
+    const language = useAppSelector((state) => state.Language.selectedLanguage)
 
     useEffect(() => { }, [language?.id])
     return (

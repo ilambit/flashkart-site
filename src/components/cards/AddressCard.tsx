@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { setSelectedAddresForEdit } from "@/redux/slices/addressSlice";
 import { setAddress } from "@/redux/slices/checkoutSlice";
 import * as api from "@/api/apiRoutes";
@@ -27,11 +27,11 @@ const AddressCard = ({
   finalOrderAddress,
   fromAddress,
 }: AddressCardProps) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
-  const checkout = useSelector((state: any) => state.Checkout);
+  const checkout = useAppSelector((state) => state.Checkout);
 
-  const theme = useSelector((state: any) => state.Theme.theme);
+  const theme = useAppSelector((state) => state.Theme.theme);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -48,7 +48,7 @@ const AddressCard = ({
         setShowDeleteModal(false);
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[AddressCard]", error);
     } finally {
       setDeleting(false);
     }

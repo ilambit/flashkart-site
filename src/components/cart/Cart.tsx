@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import BreadCrumb from "../breadcrumb/BreadCrumb";
@@ -8,7 +9,6 @@ import CartCouponCard from "./CartCouponCard";
 import CartOffersCarousel from "./CartOffersCarousel";
 import { FiBookmark, FiChevronRight } from "react-icons/fi";
 import { t } from "@/utils/translation";
-import { useSelector, useDispatch } from "react-redux";
 import {
   setCart,
   setCartCurrency,
@@ -39,12 +39,12 @@ const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
 const Cart = () => {
   const zoneHref = useZoneHref();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
-  const city = useSelector((state: any) => state.City.city);
-  const cart = useSelector((state: any) => state.Cart);
-  const user = useSelector((state: any) => state.User);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const city = useAppSelector((state) => state.City.city);
+  const cart = useAppSelector((state) => state.Cart);
+  const user = useAppSelector((state) => state.User);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
   const activeChannel = shopMode === "quick" ? "quick" : "ecommerce";
   const [cartProductsData, setCartProductsData] = useState<any[]>([]);
   const [showCouponCode, setShowCouponCode] = useState(false);
@@ -104,7 +104,6 @@ const Cart = () => {
     } catch (error) {
       setLoading(false);
       setInitialLoad(false);
-      console.log("Error", error);
     }
   };
 
@@ -156,7 +155,6 @@ const Cart = () => {
     } catch (error) {
       setLoading(false);
       setInitialLoad(false);
-      console.log("error", error);
     }
   };
 

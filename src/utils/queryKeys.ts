@@ -62,6 +62,18 @@ export const categoriesKey = ({
   longitude?: unknown;
 }) => ["categories", page ?? 1, str(slug), str(latitude), str(longitude)] as const;
 
+export const categoryLayoutKey = ({
+  latitude,
+  longitude,
+  shopMode,
+  device,
+}: {
+  latitude?: unknown;
+  longitude?: unknown;
+  shopMode?: unknown;
+  device?: unknown;
+}) => ["category-layout", str(latitude), str(longitude), shopMode, str(device)] as const;
+
 export const pageBuilderKey = ({
   slug,
   latitude,
@@ -94,11 +106,16 @@ export const productsFilterKeyPart = (filter: any, search: unknown) => ({
 // Prefixes invalidated when the language changes, since locale left the keys.
 export const LOCALE_SENSITIVE_KEYS = [
   ["home-layout"],
+  ["category-layout"],
   ["products"],
   ["product"],
   ["categories"],
   ["page-builder"],
   ["subCategories"],
+  ["blogs-categories"],
+  ["blogs-most-viewed"],
+  ["blogs-tags"],
+  ["blogs-list"],
   // Country/zone names come back translated, and these keys carry no language.
   ["footer-countries"],
   ["location-modal-countries"],

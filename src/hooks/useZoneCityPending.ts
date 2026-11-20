@@ -1,6 +1,6 @@
 "use client";
 
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
 import { useParams } from "next/navigation";
 import useIsHydrated from "@/hooks/useIsHydrated";
 
@@ -9,9 +9,9 @@ import useIsHydrated from "@/hooks/useIsHydrated";
 export default function useZoneCityPending() {
   const routeParams = useParams<{ zone?: string }>();
   const zoneSlugFromUrl = routeParams?.zone ?? null;
-  const citySlug = useSelector((state: any) => state.City.city?.slug ?? null);
-  const selectedZoneSlug = useSelector(
-    (state: any) => state?.LocationModal?.selectedZone?.slug,
+  const citySlug = useAppSelector((state) => state.City.city?.slug ?? null);
+  const selectedZoneSlug = useAppSelector(
+    (state) => state?.LocationModal?.selectedZone?.slug,
   );
   const isHydrated = useIsHydrated();
 

@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import {
   startAdminChat,
   getChatMessages,
@@ -19,12 +19,12 @@ import { toast } from "react-toastify";
 
 // Customer-to-admin support chat hook for managing messages and websocket subscriptions.
 export default function useSupportChat() {
-  const user = useSelector((s: any) => s.User?.user);
+  const user = useAppSelector((s) => s.User?.user);
   const userId = user?.id;
-  const latitude = useSelector((s: any) => s.City.city?.latitude);
-  const longitude = useSelector((s: any) => s.City.city?.longitude);
+  const latitude = useAppSelector((s) => s.City.city?.latitude);
+  const longitude = useAppSelector((s) => s.City.city?.longitude);
   // Realtime settings status for WebSocket initialization.
-  const settingStatus = useSelector((s: any) => s.Setting?.status);
+  const settingStatus = useAppSelector((s) => s.Setting?.status);
 
   const [conversation, setConversation] = useState<UiConversation | null>(null);
   const [messages, setMessages] = useState<UiMessage[]>([]);

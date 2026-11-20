@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { t } from "@/utils/translation";
 import NotificationCard from "../notifications/NotificationCard";
 import * as api from "../../api/apiRoutes";
@@ -15,7 +15,7 @@ const Notifications = () => {
   // Notification items array from API
   const [notifications, setNotifications] = useState<any[]>([]);
   const [currPage, setCurrPage] = useState(1);
-  const [offset, setoffset] = useState(0);
+  const [, setoffset] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [totalNotications, setTotalNotifications] = useState<number | null>(null);
   const [isError, setIsError] = useState(false);
@@ -54,7 +54,6 @@ const Notifications = () => {
       if (offset === 0) {
         setIsError(true);
       }
-      console.log("Error ", error);
     }
   };
 

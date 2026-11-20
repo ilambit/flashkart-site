@@ -1,7 +1,7 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useSelector, useDispatch } from "react-redux";
 import { t } from "@/utils/translation";
 import * as api from "@/api/apiRoutes";
 import { toast } from "react-toastify";
@@ -9,7 +9,6 @@ import useOrderPlacement from "@/hooks/useOrderPlacement";
 import useStoreClosed from "@/hooks/useStoreClosed";
 import { setAllAddresses, setSelectedAddresForEdit } from "@/redux/slices/addressSlice";
 import { clearCartPromo } from "@/redux/slices/cartSlice";
-import { setDeliveryType } from "@/redux/slices/checkoutSlice";
 import { hasMissingRequiredPrescriptions } from "@/utils/helperFunction";
 import DeliveryModeToggle from "./DeliveryModeToggle";
 import AppliedCouponCard from "./AppliedCouponCard";
@@ -67,6 +66,9 @@ import usePendingCouponAutoApply from "@/hooks/usePendingCouponAutoApply";
 import CouponAutoApplyError from "./CouponAutoApplyError";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import { cartLineKey } from "@/utils/addons";
+import { isGatewayAllowedForCurrency } from "@/utils/paymentSettings";
+import useCurrency from "@/hooks/useCurrency";
+import { isCartBranchChanged } from "@/hooks/usePaymentResult";
 
 // Online gateways keyed by payment_setting flag (COD/wallet handled separately).
 const GATEWAYS = [
@@ -125,20 +127,24 @@ const QuickCheckoutView = ({
   setCartData,
   onViewCoupons,
 }: QuickCheckoutViewProps) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const pathname = usePathname();
   const { storeClosed, notifyClosed, closedProps } = useStoreClosed();
-  const cart = useSelector((state: any) => state.Cart);
-  const user = useSelector((state: any) => state.User);
-  const paymentSetting = useSelector((state: any) => state.Setting.payment_setting);
-  const city = useSelector((state: any) => state.City.city);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
-  const appliedCoupon = useSelector((state: any) => state.Cart.promo_code);
-  const prescriptions = useSelector((state: any) => state.Cart.prescriptions);
-  const deliveryType = useSelector(
-    (state: any) => state.Checkout.deliveryType as "delivery" | "pickup",
+  const cart = useAppSelector((state) => state.Cart);
+  const user = useAppSelector((state) => state.User);
+  const paymentSetting = useAppSelector((state) => state.Setting.payment_setting);
+  const city = useAppSelector((state) => state.City.city);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
+  const appliedCoupon = useAppSelector((state) => state.Cart.promo_code);
+  const prescriptions = useAppSelector((state) => state.Cart.prescriptions);
+  const deliveryType = useAppSelector(
+    (state) => state.Checkout.deliveryType as "delivery" | "pickup",
   );
-  const { placeOrder, paymentLoading, StripePortal } = useOrderPlacement();
+  // Bumped on CART_BRANCH_CHANGED to reload the cart with address coords.
+  const [cartReloadKey, setCartReloadKey] = useState(0);
+  const { placeOrder, paymentLoading, StripePortal } = useOrderPlacement({
+    onCartBranchChanged: () => setCartReloadKey((k) => k + 1),
+  });
 
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<any>(null);
@@ -162,11 +168,11 @@ const QuickCheckoutView = ({
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [orderNote, setOrderNote] = useState("");
   const billingDetails = useBillingDetails();
-  const buyerTaxNumber = useSelector(
-    (state: any) => state.Checkout.buyerTaxNumber,
+  const buyerTaxNumber = useAppSelector(
+    (state) => state.Checkout.buyerTaxNumber,
   );
-  const buyerBusinessName = useSelector(
-    (state: any) => state.Checkout.buyerBusinessName,
+  const buyerBusinessName = useAppSelector(
+    (state) => state.Checkout.buyerBusinessName,
   );
   // Pickup: inline Bill To fields sent as billing_* (no saved address created).
   const [showManualBilling, setShowManualBilling] = useState(false);
@@ -181,8 +187,11 @@ const QuickCheckoutView = ({
   }, [pathname, onClose]);
 
   const walletBalance = Number(user?.user?.balance || 0);
+  const { currencyCode } = useCurrency();
   const enabledGateways = GATEWAYS.filter(
-    (g) => paymentSetting?.[g.key] === "1",
+    (g) =>
+      paymentSetting?.[g.key] === "1" &&
+      isGatewayAllowedForCurrency(g.key, currencyCode),
   );
 
   const formatAddress = (a: any) =>
@@ -228,7 +237,6 @@ const QuickCheckoutView = ({
       );
     } catch (error) {
       if (seq !== loadAddressesSeqRef.current) return;
-      console.log("[quick-checkout] getAddress failed", error);
     } finally {
       if (seq === loadAddressesSeqRef.current) setAddressLoading(false);
     }
@@ -265,13 +273,15 @@ const QuickCheckoutView = ({
         if (!alive) return;
         if (res?.status == 1) {
           setCheckoutData(res?.data);
+        } else if (isCartBranchChanged(res) && cartReloadKey < 1) {
+          setCartReloadKey((k) => k + 1);
         } else {
           setCheckoutData(null);
           // Delivery errors don't apply to pickup.
           if (res?.message && !isPickup) toast.error(res.message);
         }
       } catch (error) {
-        console.log("[quick-checkout] getCart(checkout) failed", error);
+        console.error("[QuickCheckoutView]", error);
       } finally {
         if (alive) setTotalsLoading(false);
       }
@@ -291,6 +301,7 @@ const QuickCheckoutView = ({
     cart?.promo_code?.promo_code_id,
     cart?.cartSubTotal,
     deliveryType,
+    cartReloadKey,
   ]);
 
   // API sends delivery_charge as scalar, object, or delivery_charges — handle all.
@@ -396,18 +407,6 @@ const QuickCheckoutView = ({
     prescriptions,
   );
 
-  // Pickup: saved address OR inline billing (isFilled, not isValid — no
-  // shipping address to be "same as").
-  const addressSatisfied = isPickup
-    ? !!selectedAddress || billingDetails.isFilled
-    : !!selectedAddress;
-
-  const canPlace =
-    addressSatisfied &&
-    !paymentLoading &&
-    !totalsLoading &&
-    !!effectiveMethod &&
-    !missingRx;
 
   const handlePlaceOrder = async () => {
     if (storeClosed) {

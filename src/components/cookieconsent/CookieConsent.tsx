@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import { t } from "@/utils/translation";
 import {
   CONSENT_ACCEPTED,
@@ -11,7 +11,7 @@ import { CookieIcon } from "@/components/icons";
 
 // Bottom cookie banner, driven by web_settings.cookie_consent_*; choice persists via utils/cookieConsent and gates analytics in _app.js.
 const CookieConsent = () => {
-  const setting = useSelector((state: any) => state.Setting);
+  const setting = useAppSelector((state) => state.Setting);
   const web = setting?.setting?.web_settings;
 
   const enabled = String(web?.cookie_consent_enabled ?? "") === "1";

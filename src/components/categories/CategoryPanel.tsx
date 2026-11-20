@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
-import { ChevronRight } from "lucide-react";
+import { LuChevronRight } from "react-icons/lu";
 import { t } from "@/utils/translation";
 
 const getName = (c: any): string | undefined => c?.translations?.name ?? c?.name;
@@ -166,7 +166,7 @@ const CategoryPanel = ({ category, onSelect }: CategoryPanelProps) => {
             {expanded
               ? t("hide_subcategories") || "Hide"
               : t("show_subcategories") || "View all"}
-            <ChevronRight
+            <LuChevronRight
               className={`h-3.5 w-3.5 transition-transform duration-200 ${
                 expanded ? "rotate-90" : ""
               }`}

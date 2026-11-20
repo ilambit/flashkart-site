@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
 import { CACHE_VERSION_GROUP_KEYS } from "@/utils/queryKeys";
 
@@ -30,8 +30,8 @@ const writeStored = (versions: Record<string, string>) => {
  */
 export default function useCacheVersionSync() {
   const queryClient = useQueryClient();
-  const versions = useSelector(
-    (state: any) => state.Setting?.setting?.cache_versions,
+  const versions = useAppSelector(
+    (state) => state.Setting?.setting?.cache_versions,
   ) as Record<string, string> | undefined;
   // Persisted too, so a reload still notices what changed while the tab was shut.
   const previousRef = useRef<Record<string, string> | null>(null);

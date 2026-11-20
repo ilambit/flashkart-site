@@ -1,5 +1,4 @@
-import React from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { t } from "@/utils/translation";
 import { setDeliveryType } from "@/redux/slices/checkoutSlice";
 import { RiPhoneLine } from "react-icons/ri";
@@ -27,9 +26,9 @@ const DeliveryModeToggle = ({
   onBeforeToggle,
   isGuest = false,
 }: DeliveryModeToggleProps) => {
-  const dispatch = useDispatch();
-  const deliveryType = useSelector(
-    (state: any) => state.Checkout.deliveryType as "delivery" | "pickup",
+  const dispatch = useAppDispatch();
+  const deliveryType = useAppSelector(
+    (state) => state.Checkout.deliveryType as "delivery" | "pickup",
   );
 
   if (!checkoutData) return null;

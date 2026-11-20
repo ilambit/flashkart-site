@@ -1,4 +1,4 @@
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
 import { store } from "@/redux/store";
 import { t } from "@/utils/translation";
 
@@ -41,7 +41,7 @@ export const getPasswordPolicy = (): PasswordPolicy =>
 
 /** Reactive policy — re-renders the caller when the settings land. */
 export const usePasswordPolicy = (): PasswordPolicy => {
-  const setting = useSelector((state: any) => state.Setting?.setting);
+  const setting = useAppSelector((state) => state.Setting?.setting);
   return normalizePolicy(setting);
 };
 
@@ -124,12 +124,6 @@ export const validatePassword = (
   const failed = getPasswordRules(password, policy).find((rule) => !rule.passed);
   return failed ? failed.label : null;
 };
-
-/** True when the password is present AND satisfies every active rule. */
-export const isPasswordValid = (
-  password: string | null | undefined,
-  policy: PasswordPolicy | null = null,
-): boolean => !!password && !validatePassword(password, policy);
 
 /** Reactive password rules hook for component usage. */
 export const usePasswordRules = (password: string | null | undefined = ""): PasswordRule[] =>

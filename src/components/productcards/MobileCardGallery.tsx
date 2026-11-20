@@ -1,6 +1,7 @@
 "use client";
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
+import useHydratedMediaQuery from "@/hooks/useHydratedMediaQuery";
 
 interface MobileCardGalleryProps {
   images: string[];
@@ -9,6 +10,8 @@ interface MobileCardGalleryProps {
   imgClassName?: string;
   /** Extra classes for the dot row (position above a variant bar). */
   dotsClassName?: string;
+  /** Preload the first slide — only for the few cards above the fold. */
+  priority?: boolean;
 }
 
 // Mobile counterpart to the cards' desktop hover slideshow: scroll-snap track
@@ -18,9 +21,13 @@ const MobileCardGallery = ({
   alt,
   imgClassName = "",
   dotsClassName = "bottom-1.5 start-2",
+  priority = false,
 }: MobileCardGalleryProps) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  // The track is `md:hidden`, but an eager image loads even inside
+  // display:none — so only warm the neighbours where the track is really used.
+  const isTouchLayout = useHydratedMediaQuery("(max-width: 767px)");
 
   const handleScroll = () => {
     const el = trackRef.current;
@@ -59,7 +66,12 @@ const MobileCardGallery = ({
             alt={alt}
             width={300}
             height={300}
-            priority={idx === 0}
+            priority={priority && idx === 0}
+            // Slides sit off-screen horizontally, so the lazy default only
+            // starts fetching mid-swipe and the next slide flashes blank.
+            // Keep the neighbours ready.
+            loading={isTouchLayout && idx <= active + 1 ? "eager" : "lazy"}
+            sizes="(max-width: 768px) 50vw, 240px"
             className={`h-full w-full shrink-0 snap-center snap-always object-contain ${imgClassName}`}
           />
         ))}

@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import { t } from "@/utils/translation";
 
@@ -16,8 +16,8 @@ interface BuyerTaxFieldCoords {
  * coordinates sent — so pass the billed address's coords when they differ.
  */
 export default function useBuyerTaxField(coords?: BuyerTaxFieldCoords) {
-  const storeField = useSelector(
-    (state: any) => state.CountrySetting?.countrySetting?.buyer_tax_field,
+  const storeField = useAppSelector(
+    (state) => state.CountrySetting?.countrySetting?.buyer_tax_field,
   );
   const [field, setField] = useState<any>(storeField || null);
   const latitude = coords?.latitude;

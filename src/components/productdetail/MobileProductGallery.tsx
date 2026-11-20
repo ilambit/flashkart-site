@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { BiHeart, BiSolidHeart } from "react-icons/bi";
 import { RiShareForwardLine } from "react-icons/ri";
 import { FaStar } from "react-icons/fa";
 import ProductLightbox from "./ProductLightbox";

@@ -3,9 +3,14 @@
 import BreadCrumb from "@/components/breadcrumb/BreadCrumb";
 import FilterSkeleton from "@/components/productFilter/FilterSkeleton";
 import CardSkeleton from "./CardSkeleton";
+import useProductsViewMode from "@/hooks/useProductsViewMode";
 
 // Skeleton loader for products listing page
-const ProductsListSkeleton = () => (
+const ProductsListSkeleton = () => {
+  // Same saved view mode ProductsList restores, so the grid doesn't flip once it mounts.
+  const [viewMode] = useProductsViewMode();
+  const isList = viewMode === "list";
+  return (
   <section>
     <BreadCrumb />
     <div className="container">
@@ -19,11 +24,19 @@ const ProductsListSkeleton = () => (
               <CardSkeleton height={70} />
             </div>
             <div
-              className="grid gap-4 auto-rows-min product-grid-cols grid-cols-2"
-              style={{ "--grid-cols": 5 } as React.CSSProperties}
+              className={`grid gap-4 auto-rows-min ${
+                isList
+                  ? "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"
+                  : "product-grid-cols grid-cols-2"
+              }`}
+              style={
+                isList
+                  ? undefined
+                  : ({ "--grid-cols": viewMode } as React.CSSProperties)
+              }
             >
               {Array.from({ length: 12 }).map((_, i) => (
-                <CardSkeleton key={i} variant="product" />
+                <CardSkeleton key={i} variant={isList ? "list" : "product"} />
               ))}
             </div>
           </div>
@@ -31,6 +44,7 @@ const ProductsListSkeleton = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default ProductsListSkeleton;

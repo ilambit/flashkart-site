@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { t } from "@/utils/translation";
 import Link from "next/link";
 import { formatCustomDate } from "@/lib/utils";
-import { TbCurrentLocation } from "react-icons/tb";
 import {
   LuPackage,
   LuEye,
@@ -52,13 +51,13 @@ interface EcomOrdersCardProps {
   onCancelled: () => void;
   channel: string;
   shopMode: string;
-  availableModes: string;
+  availableModes: string | null;
 }
 
 // E-commerce order card for individual order items
 const EcomOrdersCard = ({ order, onCancelled, channel, shopMode, availableModes }: EcomOrdersCardProps) => {
   const zoneHref = useZoneHref();
-  const { currency } = useCurrency(order);
+  const { currency, decimals } = useCurrency(order);
   const [open, setOpen] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showReoderModal, setShowReorderModal] = useState(false);
@@ -130,10 +129,9 @@ const EcomOrdersCard = ({ order, onCancelled, channel, shopMode, availableModes 
   // Compute display total combining wallet and gateway payments
   const walletUsed = Number(order?.wallet_balance) > 0;
   const displayTotal = walletUsed
-    ? Number(order?.wallet_balance) + Number(order?.final_total || 0)
+    ? Number((Number(order?.wallet_balance) + Number(order?.final_total || 0)).toFixed(decimals || 2))
     : order?.final_total;
   // Format payment method label for split wallet payments
-  const gatewayResidual = Number(order?.final_total || 0);
   const paymentLabel =
     walletUsed && Number(order?.final_total) > 0 && payment
       ? `${t("wallet") || "Wallet"} + ${payment}`

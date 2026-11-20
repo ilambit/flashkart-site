@@ -1,58 +1,83 @@
 import { store } from "@/redux/store";
 import { t } from "@/utils/translation";
 
+const NOTE_ID = "unsupported-browser-note";
+export const HIDE_NOTE_KEY = "hide-unsupported-browser-note";
+
+const isHidden = (): boolean => {
+  try {
+    return sessionStorage.getItem(HIDE_NOTE_KEY) === "true";
+  } catch {
+    return false;
+  }
+};
+
 export const createStickyNote = (): void => {
-  if (typeof window !== "undefined" && sessionStorage.getItem("hide-unsupported-browser-note") === "true") return;
-  if (document.getElementById("unsupported-browser-note")) return;
+  if (typeof window === "undefined" || isHidden()) return;
+  if (document.getElementById(NOTE_ID)) return;
 
-  const setting = (store.getState() as any)?.Setting?.setting;
-  const theme = (store.getState() as any)?.Theme.theme;
-  const appUrl = setting?.web_settings?.ios_app_url;
+  const state = store.getState() as any;
+  const appUrl = state?.Setting?.setting?.web_settings?.ios_app_url;
+  const isLight = state?.Theme?.theme === "light";
 
-  const stickyNote = document.createElement("div");
-  stickyNote.id = "unsupported-browser-note";
-  stickyNote.style.position = "fixed";
-  stickyNote.style.bottom = "0";
-  stickyNote.style.left = "0";
-  stickyNote.style.width = "100%";
-  stickyNote.style.backgroundColor = theme == "light" ? "#ffffff" : "#40454A";
-  stickyNote.style.color = theme == "light" ? "#40454A" : "#fff";
-  stickyNote.style.padding = "15px";
-  stickyNote.style.textAlign = "center";
-  stickyNote.style.fontSize = "14px";
-  stickyNote.style.zIndex = "99999";
-  stickyNote.style.boxShadow = "0 -2px 10px rgba(0,0,0,0.1)";
-  stickyNote.style.display = "flex";
-  stickyNote.style.justifyContent = "center";
-  stickyNote.style.alignItems = "center";
+  const note = document.createElement("div");
+  note.id = NOTE_ID;
+  note.setAttribute("role", "status");
+  Object.assign(note.style, {
+    position: "fixed",
+    bottom: "0",
+    left: "0",
+    width: "100%",
+    backgroundColor: isLight ? "#ffffff" : "#40454A",
+    color: isLight ? "#40454A" : "#fff",
+    padding: "15px",
+    textAlign: "center",
+    fontSize: "14px",
+    zIndex: "99999",
+    boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  });
 
-  const textNode = document.createElement("span");
-  textNode.innerText = t("chat_and_notification_not_supported");
-  stickyNote.appendChild(textNode);
+  const text = document.createElement("span");
+  text.textContent = t("chat_and_notification_not_supported");
+  note.appendChild(text);
 
   if (appUrl) {
     const link = document.createElement("a");
-    link.style.textDecoration = "underline";
-    link.style.color = "#3498db";
-    link.style.marginLeft = "10px";
-    link.innerText = t("download_now");
+    link.textContent = t("download_now");
     link.href = appUrl;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    stickyNote.appendChild(link);
+    Object.assign(link.style, {
+      textDecoration: "underline",
+      color: "#3498db",
+      marginLeft: "10px",
+    });
+    note.appendChild(link);
   }
 
-  const closeButton = document.createElement("span");
-  closeButton.style.cursor = "pointer";
-  closeButton.style.marginLeft = "20px";
-  closeButton.style.fontSize = "20px";
-  closeButton.style.lineHeight = "1";
-  closeButton.innerHTML = "×";
-  closeButton.onclick = function (): void {
-    document.body.removeChild(stickyNote);
-    sessionStorage.setItem("hide-unsupported-browser-note", "true");
+  const close = document.createElement("button");
+  close.type = "button";
+  close.setAttribute("aria-label", "Close");
+  close.textContent = "×";
+  Object.assign(close.style, {
+    cursor: "pointer",
+    marginLeft: "20px",
+    fontSize: "20px",
+    lineHeight: "1",
+    background: "none",
+    border: "none",
+    color: "inherit",
+  });
+  close.onclick = () => {
+    note.remove();
+    try {
+      sessionStorage.setItem(HIDE_NOTE_KEY, "true");
+    } catch {}
   };
-  stickyNote.appendChild(closeButton);
+  note.appendChild(close);
 
-  document.body.appendChild(stickyNote);
+  document.body.appendChild(note);
 };

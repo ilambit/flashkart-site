@@ -20,6 +20,8 @@ interface AddressCardProps {
   onEdit: () => void;
   onDelete: () => void;
   formatAddress: (a: any) => string;
+  /** Flat list row (mobile sheet): no card chrome, no type icon. */
+  plain?: boolean;
 }
 
 const AddressCard = ({
@@ -29,6 +31,7 @@ const AddressCard = ({
   onEdit,
   onDelete,
   formatAddress,
+  plain = false,
 }: AddressCardProps) => {
   const type = (addr?.type || "").toLowerCase();
   let TypeIcon = FiMapPin;
@@ -52,11 +55,15 @@ const AddressCard = ({
 
   return (
     <label
-      className={`relative flex items-center gap-2.5 !rounded-xl border p-3 cursor-pointer transition ${
-        active
-          ? "primaryColorBorder dark:border-white dark:bg-white/5"
-          : "cardBorder hover:border-gray-300 dark:hover:border-gray-600"
-      }`}
+      className={
+        plain
+          ? "relative flex items-center gap-3 py-3 cursor-pointer"
+          : `relative flex items-center gap-2.5 !rounded-xl border p-3 cursor-pointer transition ${
+              active
+                ? "primaryColorBorder dark:border-white dark:bg-white/5"
+                : "cardBorder hover:border-gray-300 dark:hover:border-gray-600"
+            }`
+      }
     >
       <input
         type="radio"
@@ -80,6 +87,7 @@ const AddressCard = ({
       </span>
 
       {/* type icon */}
+      {!plain && (
       <span
         className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
           active
@@ -89,6 +97,7 @@ const AddressCard = ({
       >
         <TypeIcon size={15} />
       </span>
+      )}
 
       {/* details */}
       <div className="flex flex-col min-w-0 flex-1">

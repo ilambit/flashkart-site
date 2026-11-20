@@ -1,5 +1,4 @@
 // components/skeletons/CartSkeleton.js
-import React from 'react';
 
 // Base skeleton animation component
 const SkeletonBox = ({ className = "" }: { className?: string }) => (

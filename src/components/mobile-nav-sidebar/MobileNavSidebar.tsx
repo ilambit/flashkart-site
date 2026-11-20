@@ -1,3 +1,4 @@
+import { useAppSelector } from "@/redux/hooks";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +19,6 @@ import { socialIconUrl } from "@/utils/socialIcon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RiCloseFill } from "react-icons/ri";
-import { useSelector } from "react-redux";
 import { FaCaretDown } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import useZoneHref from "@/hooks/useZoneHref";
@@ -33,8 +33,8 @@ interface MobileNavSidebarProps {
 const MobileNavSidebar = ({ open, setOpen, handleLanguageChange }: MobileNavSidebarProps) => {
   const zoneHref = useZoneHref();
   const pathname = usePathname();
-  const setting = useSelector((state: any) => state?.Setting?.setting);
-  const language = useSelector((state: any) => state.Language);
+  const setting = useAppSelector((state) => state?.Setting?.setting);
+  const language = useAppSelector((state) => state.Language);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent
@@ -46,7 +46,7 @@ const MobileNavSidebar = ({ open, setOpen, handleLanguageChange }: MobileNavSide
           <SheetTitle className="flex justify-between px-4 py-4 items-center border-b">
             <div className="w-36 h-9 relative">
               <Image
-                src={setting?.web_settings?.web_logo}
+                src={setting?.web_settings?.web_logo || "/logo.png"}
                 alt="mobileLogo"
                 fill
                 sizes="144px"

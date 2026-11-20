@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   useState,
   useRef,
@@ -18,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import debounce from "lodash/debounce";
 import { t } from "@/utils/translation";
-import { useSelector, useDispatch } from "react-redux";
 import Image from "next/image";
 import { FaLocationCrosshairs } from "react-icons/fa6";
 import * as api from "@/api/apiRoutes";
@@ -120,12 +120,12 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
   const { resolving: resolvingCountry } = useDefaultCountry();
   const router = useRouter();
   const { parseLangPath } = useLanguages();
-  const city = useSelector((state: any) => state.City);
-  const setting = useSelector((state: any) => state.Setting);
-  const theme = useSelector((state: any) => state.Theme.theme);
+  const city = useAppSelector((state) => state.City);
+  const setting = useAppSelector((state) => state.Setting);
+  const theme = useAppSelector((state) => state.Theme.theme);
   const inputDomRef = useRef<HTMLInputElement>(null);
   const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const [mapView, setMapView] = useState(false);
   const [addressLoading, setAddressLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -145,8 +145,8 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
   const [checkingZone, setCheckingZone] = useState(false);
 
   // Shared with the footer's country selector.
-  const selectedCountry = useSelector(
-    (state: any) => state?.LocationModal?.selectedCountry,
+  const selectedCountry = useAppSelector(
+    (state) => state?.LocationModal?.selectedCountry,
   );
   const [countryOpen, setCountryOpen] = useState(false);
   const countryRef = useRef<HTMLDivElement>(null);
@@ -353,7 +353,6 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
         lng: zone.center.lng,
       });
     } catch (error) {
-      console.log("Error resolving zone centre:", error);
       setlocalLocation({
         city: zone.name,
         formatted_address: zone.name,
@@ -378,7 +377,7 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
       } else {
         setResultedPlaces([]);
       }
-    }, 1000);
+    }, 300);
   };
 
   const handleCloseLocation = () => {
@@ -405,11 +404,9 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
           setMapView(true);
         } catch (error) {
           toast.error(t("provided_api_invalid"));
-          console.log("err", error);
         }
       },
       (error: GeolocationPositionError) => {
-        console.log("Geolocation error:", error);
 
         switch (error.code) {
           case error.PERMISSION_DENIED:
@@ -497,11 +494,6 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
           countryZones.find((z) => z.id === result.data?.id)?.name ||
           null;
         if (process.env.NODE_ENV !== "production") {
-          console.log("[ZONE TRACE] source=Location.handleConfirmLocation", {
-            id: result.data.id,
-            name: resolvedZoneName,
-            slug: result.data.slug,
-          });
         }
         dispatch(
           setSelectedZoneAction({
@@ -546,7 +538,6 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
         setErrorMessage(result.message);
       }
     } catch (error) {
-      console.log("error", error);
     }
   };
 
@@ -579,7 +570,6 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
         setErrorMessage(res?.message || "");
       }
     } catch (error) {
-      console.log("err", error);
     } finally {
       setAddressLoading(false);
     }
@@ -628,7 +618,8 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
       }
     } catch (error) {
       console.error("Error fetching places:", error);
-      toast.error("Failed to fetch places");
+      // 429 already shows the server message via axios middleware.
+      if ((error as any)?.response?.status !== 429) toast.error("Failed to fetch places");
     }
   };
 
@@ -686,7 +677,6 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
         setErrorMessage(response.message);
       }
     } catch (error) {
-      console.log("Error fetching place details:", error);
     }
   };
 
@@ -703,7 +693,7 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
       } else {
         setMapResults([]);
       }
-    }, 800);
+    }, 300);
   };
 
   const handleFetchMapPlaces = async (input: string) => {
@@ -717,7 +707,8 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
       }
     } catch (error) {
       console.error("Error fetching places:", error);
-      toast.error("Failed to fetch places");
+      // 429 already shows the server message via axios middleware.
+      if ((error as any)?.response?.status !== 429) toast.error("Failed to fetch places");
     }
   };
 
@@ -747,7 +738,6 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
         setErrorMessage(response.message);
       }
     } catch (error) {
-      console.log("Error fetching place details:", error);
     } finally {
       setAddressLoading(false);
     }
@@ -811,16 +801,14 @@ const Location = ({ showLocation, setShowLocation }: LocationProps) => {
             <div className="flex">
               {!mapView ? (
                 <div className="flex flex-col w-full">
-                  {setting?.setting?.web_settings?.web_logo && (
-                    <div className="relative mx-auto h-[72px] w-[180px] mb-2">
-                      <Image
-                        src={setting?.setting?.web_settings?.web_logo}
-                        fill
-                        className="object-contain"
-                        alt="logo"
-                      />
-                    </div>
-                  )}
+                  <div className="relative mx-auto h-[72px] w-[180px] mb-2">
+                    <Image
+                      src={setting?.setting?.web_settings?.web_logo || "/logo.png"}
+                      fill
+                      className="object-contain"
+                      alt="logo"
+                    />
+                  </div>
                   <h2 className="text-center font-bold text-base textColor">
                     {t("select_delivery_location")}
                   </h2>

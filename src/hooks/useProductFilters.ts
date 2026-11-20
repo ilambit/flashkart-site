@@ -42,6 +42,10 @@ export interface UseProductFiltersParams {
   /** Banner discount band — scopes the sheet to the same set the list shows. */
   minDiscountPercent?: string;
   maxDiscountPercent?: string;
+  /** Slider "Product list with filters" scope — same reason as the band above. */
+  attributeValueIds?: string;
+  minPrice?: string;
+  maxPrice?: string;
 }
 
 export interface UseProductFiltersResult {
@@ -66,6 +70,9 @@ export const useProductFilters = ({
   filterMode,
   minDiscountPercent,
   maxDiscountPercent,
+  attributeValueIds,
+  minPrice,
+  maxPrice,
 }: UseProductFiltersParams): UseProductFiltersResult => {
   // Normalize "no category" sentinels to null.
   const activeCategoryId =
@@ -91,6 +98,9 @@ export const useProductFilters = ({
       filterMode,
       minDiscountPercent,
       maxDiscountPercent,
+      attributeValueIds,
+      minPrice,
+      maxPrice,
     ],
     queryFn: async () => {
       const res = await api.getProductFilters({
@@ -105,6 +115,9 @@ export const useProductFilters = ({
         filter_mode: filterMode,
         min_discount_percent: minDiscountPercent,
         max_discount_percent: maxDiscountPercent,
+        attribute_value_ids: attributeValueIds,
+        min_price: minPrice,
+        max_price: maxPrice,
       });
       // API may wrap payload in { data } or return it flat.
       return res?.data ?? res ?? null;

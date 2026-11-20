@@ -39,6 +39,7 @@ export const findNodeById = (
 export const resolveSlugCsvToIdCsv = (
   tree: CategoryNode[] | null | undefined,
   slugCsv?: string | null,
+  { expand = true }: { expand?: boolean } = {},
 ): string => {
   if (!slugCsv) return "";
   const slugs = String(slugCsv)
@@ -50,6 +51,11 @@ export const resolveSlugCsvToIdCsv = (
   for (const slug of slugs) {
     const node = findNodeBySlug(tree, slug);
     if (!node) continue;
+    // data_source=category: server expands the subtree, so send ids as received
+    if (!expand) {
+      if (node.id != null) ids.push(node.id);
+      continue;
+    }
     const leafEntries =
       childrenOf(node).length > 0
         ? collectLeafCategoryEntries(node)

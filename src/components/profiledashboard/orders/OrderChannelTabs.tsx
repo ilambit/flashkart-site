@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { t } from "@/utils/translation";
 import { LuZap, LuStore, LuSlidersHorizontal } from "react-icons/lu";
 import OrderFilterSheet from "./OrderFilterSheet";

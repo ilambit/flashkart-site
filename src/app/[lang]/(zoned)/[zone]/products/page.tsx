@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import axios from "axios";
 import { getWithEtag } from "@/api/etagCache";
 import Productspage from "@/components/pagecomponents/Productspage";
 import LanguageCodesSeed from "@/app/LanguageCodesSeed";
@@ -94,8 +93,8 @@ const loadProductsData = cache(async (lang: string, zoneSlug: string, query: Rec
           const resolvedIds = resolveSlugCsvToIdCsv(tree?.data ?? [], urlFilter.category_id);
           apiFilter = { ...urlFilter, category_id: resolvedIds };
         } catch (err: any) {
+          console.error("[page]", err);
           // Non-fatal — fall through with the unresolved slug.
-          console.log("[products] category tree resolve failed:", err?.message);
         }
       }
       const listing: any = await getProductListingServer({
@@ -118,8 +117,8 @@ const loadProductsData = cache(async (lang: string, zoneSlug: string, query: Rec
         };
       }
     } catch (err: any) {
+      console.error("[page]", err);
       // Non-fatal — client refetches on mount.
-      console.log("[products] listing fetch failed:", err?.message);
     }
   }
 
@@ -178,7 +177,6 @@ const loadProductsData = cache(async (lang: string, zoneSlug: string, query: Rec
       initialProducts,
     };
   } catch (error) {
-    console.log("error", error);
     // SEO failure keeps the resolved zone and SSR products.
     return {
       notFoundZone: false,

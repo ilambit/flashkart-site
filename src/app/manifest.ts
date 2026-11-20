@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 // PWA name/description/icon from admin settings; env fallbacks.
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
-  const fallbackName = process.env.NEXT_PUBLIC_WEB_NAME || "Flashkart";
+  const fallbackName = process.env.NEXT_PUBLIC_WEB_NAME || "App";
   let name = fallbackName;
   let description = process.env.NEXT_PUBLIC_META_TITLE || fallbackName;
   let iconUrl: string | null = null;

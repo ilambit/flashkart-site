@@ -1,12 +1,12 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import { t } from "@/utils/translation";
 import { formatDuration, parseUtc, windowKey } from "@/utils/maintenanceWindow";
 import { ClockIcon, CloseIcon } from "@/components/icons";
 
 /** Toast notice for upcoming scheduled maintenance windows */
 const MaintenanceNotice = () => {
-  const setting = useSelector((state: any) => state.Setting);
+  const setting = useAppSelector((state) => state.Setting);
   const web = setting?.setting?.web_settings;
 
   const mode = String(web?.website_mode ?? "");

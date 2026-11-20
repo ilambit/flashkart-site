@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { RiCloseFill } from "react-icons/ri";
 import { t } from "@/utils/translation";
-import { formatCustomDate } from "@/lib/utils";
 import * as api from "@/api/apiRoutes";
 import { BiPhoneCall } from "react-icons/bi";
 import { IoLocationOutline } from "react-icons/io5";
@@ -106,7 +105,7 @@ const LiveTrackingModal = ({
       .then((res: any) => {
         if (active && res?.data?.avatar) setRiderAvatar(res.data.avatar);
       })
-      .catch((error: any) => console.log("startOrderChat error", error));
+      .catch((error: any) => {});
     return () => {
       active = false;
     };
@@ -142,7 +141,6 @@ const LiveTrackingModal = ({
         }
       }
     } catch (error) {
-      console.log("error", error);
     }
   }, [order, isDeliveryBoyAssigned, hasEverHadRiderFix]);
 

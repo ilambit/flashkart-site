@@ -19,6 +19,8 @@ interface AddonGroupsListProps {
   /** Line currency, so the sheet and the cart row read alike. */
   currency: string;
   loading?: boolean;
+  /** Mobile app look: one white card per group, borderless rows. */
+  appStyle?: boolean;
 }
 
 // Every question with its options. Shared by the add sheet and the cart's
@@ -29,6 +31,7 @@ const AddonGroupsList = ({
   setDraft,
   currency,
   loading = false,
+  appStyle = false,
 }: AddonGroupsListProps) => {
   const toggleOption = (group: AddonGroup, option: AddonOption) => {
     if (group.input_type === "radio") {
@@ -67,6 +70,101 @@ const AddonGroupsList = ({
     const stepperAllowed =
       !isRadio && group.max_qty_per_option > 1 && (option.max_qty || 1) > 1;
 
+    // App layout: diet mark + name left, prices right, control last.
+    if (appStyle) {
+      return (
+        <div
+          key={option.id}
+          role="button"
+          tabIndex={0}
+          onClick={() => !stepperAllowed && toggleOption(group, option)}
+          onKeyDown={(e) =>
+            e.key === "Enter" && !stepperAllowed && toggleOption(group, option)
+          }
+          className={`flex items-center gap-2.5 py-2.5 ${stepperAllowed ? "" : "cursor-pointer"}`}
+        >
+          {option.image && (
+            <span className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-gray-100 bg-white dark:border-zinc-800">
+              <ImageWithPlaceholder
+                src={option.image}
+                alt={option.name}
+                width={80}
+                height={80}
+                className="h-full w-full object-contain"
+              />
+            </span>
+          )}
+          {typeMeta?.svg && (
+            <span className="relative h-4 w-4 shrink-0">
+              <Image
+                src={typeMeta.svg}
+                fill
+                alt={t(typeMeta.labelKey)}
+                className="object-contain"
+              />
+            </span>
+          )}
+          <span className="min-w-0 flex-1 truncate text-[13px] capitalize textColor">
+            {option.name}
+          </span>
+          {option.price !== 0 && (
+            <span className="flex shrink-0 items-baseline gap-1.5">
+              {discounted && (
+                <span className="whitespace-nowrap text-[11px] text-gray-400 line-through">
+                  {currency}
+                  {option.original_price}
+                </span>
+              )}
+              <span className="whitespace-nowrap text-[13px] font-semibold textColor">
+                {`+${currency}${option.price}`}
+              </span>
+            </span>
+          )}
+          {stepperAllowed ? (
+            <span
+              onClick={(e) => e.stopPropagation()}
+              className="flex h-8 shrink-0 items-center gap-2 rounded-lg border primaryColorBorder px-2"
+            >
+              <button
+                type="button"
+                onClick={() => step(group, option, -1)}
+                aria-label={t("decrease")}
+                className="flex h-5 w-5 items-center justify-center"
+              >
+                <FiMinus size={13} className="primaryColor" />
+              </button>
+              <span className="min-w-4 text-center text-sm font-bold primaryColor">
+                {quantity}
+              </span>
+              <button
+                type="button"
+                onClick={() => step(group, option, 1)}
+                aria-label={t("increase")}
+                className="flex h-5 w-5 items-center justify-center"
+              >
+                <FiPlus size={13} className="primaryColor" />
+              </button>
+            </span>
+          ) : (
+            <span
+              role={isRadio ? "radio" : "checkbox"}
+              aria-checked={picked}
+              className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 transition ${
+                isRadio ? "aspect-square rounded-full" : "rounded-[5px]"
+              } ${picked ? "primaryColorBorder" : "border-gray-300 dark:border-zinc-600"}`}
+            >
+              {picked &&
+                (isRadio ? (
+                  <span className="block h-2 w-2 shrink-0 rounded-full primaryBackColor" />
+                ) : (
+                  <FiCheck size={12} strokeWidth={3} className="primaryColor" />
+                ))}
+            </span>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div
         key={option.id}
@@ -87,12 +185,12 @@ const AddonGroupsList = ({
             role={isRadio ? "radio" : "checkbox"}
             aria-checked={picked}
             className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center border-2 transition ${
-              isRadio ? "rounded-full" : "rounded-[5px]"
+              isRadio ? "aspect-square rounded-full" : "rounded-[5px]"
             } ${picked ? "primaryColorBorder" : "border-gray-300 dark:border-zinc-600"}`}
           >
             {picked &&
               (isRadio ? (
-                <span className="h-[9px] w-[9px] rounded-full primaryBackColor" />
+                <span className="block h-1.5 w-1.5 shrink-0 rounded-full primaryBackColor" />
               ) : (
                 <FiCheck size={12} strokeWidth={3} className="primaryColor" />
               ))}
@@ -220,21 +318,30 @@ const AddonGroupsList = ({
           <div
             key={group.id}
             className={
-              index > 0
-                ? "mt-5 border-t border-gray-100 pt-5 dark:border-zinc-800"
-                : ""
+              appStyle
+                ? "rounded-2xl bg-white px-3.5 py-3.5 dark:bg-zinc-900"
+                : index > 0
+                  ? "mt-5 border-t border-gray-100 pt-5 dark:border-zinc-800"
+                  : ""
             }
           >
-            <div className="mb-2.5">
-              <div className="text-base font-bold capitalize textColor">
+            <div className={appStyle ? "" : "mb-2.5"}>
+              <div
+                className={`font-bold capitalize textColor ${appStyle ? "text-[15px]" : "text-base"}`}
+              >
                 {group.name}
               </div>
               {/* Backend-generated sentence — never recomposed from the numbers. */}
-              <div className="mt-0.5 text-xs text-gray-500">
+              <div
+                className={`mt-0.5 text-gray-500 ${appStyle ? "text-[11px]" : "text-xs"}`}
+              >
                 {group.selection_text}
               </div>
             </div>
-            <div className="flex flex-col gap-2">
+            {appStyle && (
+              <div className="mt-2.5 border-t border-dashed border-gray-200 dark:border-zinc-800" />
+            )}
+            <div className={appStyle ? "" : "flex flex-col gap-2"}>
               {(group.options ?? []).map((option) => renderOption(group, option))}
             </div>
           </div>

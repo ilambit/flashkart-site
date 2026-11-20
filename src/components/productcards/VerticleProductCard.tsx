@@ -1,15 +1,10 @@
+import { useAppSelector } from "@/redux/hooks";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { FaStar, FaMinus, FaPlus} from "react-icons/fa";
 import {
   MdAddShoppingCart} from "react-icons/md";
 import Link from "next/link";
 import { t } from "@/utils/translation";
-import VariantsModal from "../variantsmodal/VariantsModal";
-import AddonsModal from "../addonsmodal/AddonsModal";
-import AddonRepeatModal from "../addonsmodal/AddonRepeatModal";
-import AddonLinesModal from "../addonsmodal/AddonLinesModal";
-import ProductDetailModal from "../productdetailmodal/ProductDetailModal";
-import { useSelector } from "react-redux";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import MobileCardGallery from "./MobileCardGallery";
 import FewLeftBadge from "./FewLeftBadge";
@@ -30,17 +25,27 @@ import PulseHeart from "@/components/ui/pulse-heart/PulseHeart";
 import { RingBell } from "@/components/ui/bell-toggle/BellToggle";
 import ProductTypeTag from "../productdetail/ProductTypeTag";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
+import HoverImageStack from "./HoverImageStack";
 
+import dynamic from "next/dynamic";
+import MountOnOpen from "./MountOnOpen";
+const VariantsModal = dynamic(() => import("../variantsmodal/VariantsModal"), { ssr: false });
+const AddonsModal = dynamic(() => import("../addonsmodal/AddonsModal"), { ssr: false });
+const AddonRepeatModal = dynamic(() => import("../addonsmodal/AddonRepeatModal"), { ssr: false });
+const AddonLinesModal = dynamic(() => import("../addonsmodal/AddonLinesModal"), { ssr: false });
+const ProductDetailModal = dynamic(() => import("../productdetailmodal/ProductDetailModal"), { ssr: false });
 interface VerticleProductCardProps {
   product: any;
   largeImage?: boolean;
   radius?: number | string | null;
+  /** Above-the-fold card — preload its first image. */
+  eager?: boolean;
 }
 
 const VerticleProductCard = ({
   product,
-  largeImage = false,
   radius = null,
+  eager = false,
 }: VerticleProductCardProps) => {
   const zoneHref = useZoneHref();
   const rtl = useIsRtl();
@@ -48,8 +53,8 @@ const VerticleProductCard = ({
   // Format currency with zone defaults
   const { currency, decimals } = useCurrency(product);
   const money = (val: number) => formatCurrency(val, currency, decimals, true);
-  const city = useSelector((state: any) => state.City.city);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const city = useAppSelector((state) => state.City.city);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
 
   // Quick delivery label gated on hydration
   const hydrated = useIsHydrated();
@@ -68,10 +73,7 @@ const VerticleProductCard = ({
 
   const {
     cart,
-    setting,
     selectedVariant,
-    setSelectedVariant,
-    isProductAlreadyAdded,
     addedQuantity,
     maxQty,
     guestMaxQty,
@@ -131,7 +133,13 @@ const VerticleProductCard = ({
   const [hoverImgIdx, setHoverImgIdx] = useState(0);
   const hoverTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Drives the gallery's mount: hovering is the intent to see every frame.
+  const [hoverActive, setHoverActive] = useState(false);
+
   const startHoverSlide = () => {
+    // Touch taps fire mouseenter but never a matching leave.
+    if (window.matchMedia("(hover: none)").matches) return;
+    setHoverActive(true);
     if (galleryImages.length <= 1) return;
     if (hoverTimerRef.current) return;
     hoverTimerRef.current = setInterval(() => {
@@ -144,6 +152,7 @@ const VerticleProductCard = ({
       clearInterval(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
+    setHoverActive(false);
     setHoverImgIdx(0);
   };
 
@@ -179,7 +188,6 @@ const VerticleProductCard = ({
 
   const {
     liked,
-    pending: likePending,
     toggle: handleProductLikes,
     canToggle: canToggleLike,
   } = useFavoriteToggle({
@@ -216,12 +224,6 @@ const VerticleProductCard = ({
       )
     : null;
 
-  const branchName =
-    product?.brand_name ??
-    product?.branch_name ??
-    product?.branch?.branch_name ??
-    "";
-
   // Some payloads send `rating` instead of `average_rating`.
   const ratingValue = Math.round(
     Number(product?.average_rating ?? product?.rating ?? 0),
@@ -250,12 +252,15 @@ const VerticleProductCard = ({
   })();
   // Mobile: action control overlaps the image's bottom-right (Blinkit).
   const mobileActionCls =
-    "max-md:order-2 max-md:relative max-md:z-10 max-md:self-end max-md:me-0 max-md:w-[50%] max-md:min-w-[48px] max-md:rounded-lg max-md:shadow-sm max-md:shrink-0";
+    "max-md:order-2 max-md:relative max-md:z-10 max-md:self-end max-md:me-0 max-md:w-[54%] max-md:min-w-[44px] max-md:rounded-lg max-md:shadow-sm max-md:shrink-0";
 
   return (
     <div className="@container relative h-full">
       <Link
-        href={zoneHref(`/product/${product?.slug}`)}
+        href={product?.slug ? zoneHref(`/product/${product.slug}`) : "#"}
+        onClick={(e) => {
+          if (!product?.slug) e.preventDefault();
+        }}
         prefetch={false}
         style={{
           ...(radius != null ? { borderRadius: radius } : {}),
@@ -292,9 +297,9 @@ const VerticleProductCard = ({
               </span>
             )}
             {/* Mobile: grey variant bar along the image bottom; ADD overlaps its right end. */}
-            <span className="md:hidden absolute inset-x-0 bottom-0 z-[5] flex h-8 items-center bg-gray-100 ps-2 text-[12px] font-medium text-gray-700 dark:bg-zinc-800/95 dark:text-zinc-200">
+            <span className="md:hidden absolute inset-x-0 bottom-0 z-[5] flex h-8 items-center bg-gray-100 ps-2 text-[11px] font-medium text-gray-700 dark:bg-zinc-800/95 dark:text-zinc-200">
               <span
-                className="min-w-0 max-w-[46%] pe-1.5 line-clamp-2 break-words text-[11px] leading-[1.15]"
+                className="min-w-0 max-w-[46%] pe-1.5 line-clamp-2 break-words text-[10px] leading-[1.15]"
                 title={variantLabel}
               >
                 {variantLabel}
@@ -303,6 +308,7 @@ const VerticleProductCard = ({
             {galleryImages.length > 1 ? (
               <>
               <MobileCardGallery
+                priority={eager}
                 images={galleryImages}
                 alt={
                   product?.translations?.name ??
@@ -313,23 +319,19 @@ const VerticleProductCard = ({
                 dotsClassName="bottom-9 start-2"
               />
               <div className="max-md:hidden relative h-full w-full transition-transform duration-300 ease-out group-hover:scale-110">
-                {galleryImages.map((img, idx) => (
-                  <ImageWithPlaceholder
-                    key={img + idx}
-                    className={`absolute inset-0 object-contain h-full w-full p-2.5 max-md:p-0 max-md:pb-8 transition-opacity duration-500 ease-out ${
-                      idx === hoverImgIdx ? "opacity-100" : "opacity-0"
-                    } ${isProductAvailabel ? "md:grayscale" : storeClosed ? "grayscale" : ""}`}
-                    alt={
-                      product?.translations?.name ??
-                      product?.product_name ??
-                      product?.name
-                    }
-                    src={img}
-                    width={300}
-                    height={300}
-                    priority={idx === 0}
-                  />
-                ))}
+                <HoverImageStack
+                  hovered={hoverActive}
+                  images={galleryImages}
+                  activeIdx={hoverImgIdx}
+                  alt={
+                    product?.translations?.name ??
+                    product?.product_name ??
+                    product?.name
+                  }
+                  imgClassName={`object-contain h-full w-full p-2.5 max-md:p-0 max-md:pb-8 ${isProductAvailabel ? "md:grayscale" : storeClosed ? "grayscale" : ""}`}
+                  sizes="(max-width: 768px) 50vw, 240px"
+                  priority={eager}
+                />
               </div>
               </>
             ) : (
@@ -349,7 +351,8 @@ const VerticleProductCard = ({
                 src={galleryImages[0] ?? product?.image_url}
                 width={300}
                 height={300}
-                // No priority — preloading every tile hurts the real LCP.
+                sizes="(max-width: 768px) 50vw, 240px"
+                priority={eager}
               />
             )}
             {showQuickDelivery && !isProductAvailabel && (
@@ -396,7 +399,7 @@ const VerticleProductCard = ({
           </span>
 
           <h3
-            className={`mt-0.5 textColor text-[12px] md:text-[13px] font-semibold leading-snug line-clamp-1 capitalize group-hover:primaryColor dark:group-hover:text-white max-md:order-5 max-md:px-0.5 max-md:text-[13px] max-md:font-normal max-md:line-clamp-3 ${isProductAvailabel ? "max-md:opacity-60" : ""}`}
+            className={`mt-0.5 textColor text-[12px] md:text-[13px] font-semibold leading-snug line-clamp-1 capitalize group-hover:primaryColor dark:group-hover:text-white max-md:order-5 max-md:px-0.5 max-md:text-[12px] max-md:font-normal max-md:line-clamp-3 ${isProductAvailabel ? "max-md:opacity-60" : ""}`}
           >
             <ProductTypeTag
               type={product?.product_type ?? product?.indicator}
@@ -437,7 +440,7 @@ const VerticleProductCard = ({
 
           {/* Mobile: ETA at the bottom (desktop overlays it on the image). */}
           {showQuickDelivery && !isProductAvailabel && (
-            <span className="md:hidden order-7 mt-1 inline-flex w-fit items-center gap-1 px-0.5 text-[11px] text-gray-600 dark:text-zinc-300">
+            <span className="md:hidden order-7 mt-1 inline-flex w-fit items-center gap-1 px-0.5 text-[10px] text-gray-600 dark:text-zinc-300">
               <TimeIcon size={11} className="shrink-0" />
               {deliveryLabel}
             </span>
@@ -447,7 +450,7 @@ const VerticleProductCard = ({
           {/* No flex-wrap — a wide price would push Add onto its own line. */}
           <div className="mt-auto flex items-end justify-between gap-x-1.5 pt-1.5 pb-1.5 max-md:contents">
             <div className="flex min-w-0 shrink-0 flex-col leading-tight max-md:order-3 max-md:flex-row max-md:items-baseline max-md:gap-1.5 max-md:px-0.5 max-md:pt-1.5">
-              <span className="textColor text-[13px] max-md:text-[15px] max-md:font-bold md:text-[15px] font-extrabold whitespace-nowrap">
+              <span className="textColor text-[13px] max-md:text-[14px] max-md:font-bold md:text-[15px] font-extrabold whitespace-nowrap">
                 {money(
                   hasDiscount
                     ? selectedVariant?.discounted_price
@@ -456,7 +459,7 @@ const VerticleProductCard = ({
               </span>
               {/* Reserved even without a discount, for equal heights. */}
               <span
-                className={`SecondaryTextColor text-[11px] max-md:text-[11px] md:text-[12px] truncate ${hasDiscount ? "line-through" : "invisible max-md:hidden"}`}
+                className={`SecondaryTextColor text-[11px] max-md:text-[10px] md:text-[12px] truncate ${hasDiscount ? "line-through" : "invisible max-md:hidden"}`}
               >
                 {hasDiscount ? money(selectedVariant?.price) : "0"}
               </span>
@@ -467,7 +470,7 @@ const VerticleProductCard = ({
             <div className="md:hidden order-4 flex h-[15px] items-center gap-2 px-0.5">
               {hasDiscount && (discountPercent ?? 0) > 0 ? (
                 <>
-                  <span className="shrink-0 text-[12px] font-semibold uppercase text-green-600">
+                  <span className="shrink-0 text-[11px] md:text-[12px] font-semibold uppercase text-green-600">
                     {discountPercent}% {t("off")}
                   </span>
                   <span className="h-px flex-1 border-t border-dashed border-gray-300 dark:border-zinc-600" />
@@ -485,7 +488,7 @@ const VerticleProductCard = ({
                   e.stopPropagation();
                   toggleNotify(isNotifyRequested);
                 }}
-                className={`flex h-8 md:h-9 w-auto min-w-0 md:min-w-[92px] shrink items-center justify-center gap-1 rounded-lg border px-2 text-[10px] md:text-[11px] font-bold uppercase text-center leading-tight transition disabled:opacity-60 ${mobileActionCls} max-md:-mt-[34px] max-md:h-8 max-md:whitespace-nowrap max-md:px-1 max-md:text-[12px] max-md:font-semibold max-md:normal-case ${
+                className={`flex h-8 md:h-9 w-auto min-w-0 md:min-w-[92px] shrink items-center justify-center gap-1 rounded-lg border px-2 text-[10px] md:text-[11px] font-bold uppercase text-center leading-tight transition disabled:opacity-60 ${mobileActionCls} max-md:-mt-[30px] max-md:h-7 max-md:whitespace-nowrap max-md:px-1 max-md:text-[11px] max-md:font-semibold max-md:normal-case ${
                   isNotifyRequested
                     ? "border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500"
                     : "primaryBorderColor primaryColor bg-white dark:bg-zinc-900 hover:primaryLightBack"
@@ -517,7 +520,7 @@ const VerticleProductCard = ({
                   e.stopPropagation();
                 }}
                 {...closedProps}
-                className={`flex h-8 md:h-9 w-[84px] md:w-[92px] shrink-0 items-center justify-between rounded-lg primaryBackColor text-white ${mobileActionCls} max-md:-mt-[34px] max-md:h-8 ${closedProps.className ?? ""} ${qtyAnim ? "motion-safe:animate-stepperIn" : ""}`}
+                className={`flex h-8 md:h-9 w-[84px] md:w-[92px] shrink-0 items-center justify-between rounded-lg primaryBackColor text-white ${mobileActionCls} max-md:-mt-[30px] max-md:h-7 ${closedProps.className ?? ""} ${qtyAnim ? "motion-safe:animate-stepperIn" : ""}`}
               >
                 <button
                   type="button"
@@ -571,11 +574,11 @@ const VerticleProductCard = ({
                 {...closedProps}
                 className={`flex h-8 md:h-9 w-auto min-w-0 md:min-w-[92px] shrink flex-col items-center justify-center overflow-hidden rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 px-1.5 md:px-2 text-[13px] md:text-[14px] font-semibold whitespace-nowrap hover:primaryLightBack transition ${mobileActionCls} ${
                   hasAddons || productsVariants?.length > 1
-                    ? "max-md:-mt-[34px] max-md:h-8 max-md:justify-between max-md:overflow-hidden max-md:p-0"
-                    : "max-md:-mt-[34px] max-md:h-8"
+                    ? "max-md:-mt-[30px] max-md:h-auto max-md:justify-between max-md:overflow-hidden max-md:p-0"
+                    : "max-md:-mt-[30px] max-md:h-7"
                 } ${closedProps.className ?? ""}`}
               >
-                <span className="flex items-center gap-1 leading-none max-md:w-full max-md:min-h-0 max-md:flex-1 max-md:justify-center max-md:text-[13px] max-md:font-semibold max-md:tracking-wide max-md:uppercase">
+                <span className="flex items-center gap-1 leading-none max-md:w-full max-md:min-h-0 max-md:flex-1 max-md:justify-center max-md:py-[4px] max-md:text-[11px] max-md:font-semibold max-md:tracking-normal max-md:uppercase">
                   <MdAddShoppingCart
                     size={14}
                     className="shrink-0 max-md:hidden"
@@ -583,7 +586,7 @@ const VerticleProductCard = ({
                   {t("add")}
                 </span>
                 {(hasAddons || productsVariants?.length > 1) && (
-                  <span className="w-full truncate px-1 text-center text-[9px] font-medium normal-case leading-none mt-0.5 opacity-80 max-md:mt-0 max-md:bg-[var(--primary-color)] max-md:py-[2px] max-md:text-white max-md:opacity-100">
+                  <span className="w-full truncate px-1 text-center text-[9px] font-medium normal-case leading-none mt-0.5 opacity-80 max-md:mt-0 max-md:block max-md:bg-[var(--primary-color)] max-md:px-0.5 max-md:py-[2px] max-md:text-[8px] max-md:leading-[1.1] max-md:text-white max-md:opacity-100">
                     {hasAddons
                       ? t("addon_customisable")
                       : `${productsVariants?.length} ${t("options") || "options"}`}
@@ -595,39 +598,49 @@ const VerticleProductCard = ({
         </div>
       </Link>
 
-      <ProductDetailModal
-        product={product}
-        showDetailModal={showProductDetail}
-        setShowDetailModal={setShowProductDetail}
-      />
-      <VariantsModal
-        product={product}
-        showVariants={showVariants}
-        setShowVariants={setShowVariants}
-      />
-      <AddonsModal
-        product={product}
-        showAddons={showAddons}
-        setShowAddons={setShowAddons}
-        variant={selectedVariant}
-      />
-      <AddonRepeatModal
-        open={showAddonRepeat}
-        setOpen={setShowAddonRepeat}
-        product={product}
-        lastLine={lastAddonLine}
-        onRepeat={repeatLastAddonLine}
-        onAddNew={openAddonSheetAfterClose}
-      />
-      <AddonLinesModal
-        open={showAddonLines}
-        setOpen={setShowAddonLines}
-        product={product}
-        lines={addonLines}
-        onRemoveLine={removeAddonLine}
-        onRepeatLine={repeatAddonLine}
-        onAddNew={openAddonSheetAfterClose}
-      />
+      <MountOnOpen open={showProductDetail}>
+        <ProductDetailModal
+          product={product}
+          showDetailModal={showProductDetail}
+          setShowDetailModal={setShowProductDetail}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showVariants}>
+        <VariantsModal
+          product={product}
+          showVariants={showVariants}
+          setShowVariants={setShowVariants}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddons}>
+        <AddonsModal
+          product={product}
+          showAddons={showAddons}
+          setShowAddons={setShowAddons}
+          variant={selectedVariant}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddonRepeat}>
+        <AddonRepeatModal
+          open={showAddonRepeat}
+          setOpen={setShowAddonRepeat}
+          product={product}
+          lastLine={lastAddonLine}
+          onRepeat={repeatLastAddonLine}
+          onAddNew={openAddonSheetAfterClose}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddonLines}>
+        <AddonLinesModal
+          open={showAddonLines}
+          setOpen={setShowAddonLines}
+          product={product}
+          lines={addonLines}
+          onRemoveLine={removeAddonLine}
+          onRepeatLine={repeatAddonLine}
+          onAddNew={openAddonSheetAfterClose}
+        />
+      </MountOnOpen>
     </div>
   );
 };

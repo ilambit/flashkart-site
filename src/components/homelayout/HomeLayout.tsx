@@ -1,12 +1,12 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { tabIdFromSlug, slugFromTabId } from "@/utils/categoryTabSlug";
-import { useDispatch, useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import {
   setLayoutTheme,
@@ -47,12 +47,12 @@ interface HomeLayoutProps {
 
 const HomeLayout = ({ initialHomeLayout = null }: HomeLayoutProps) => {
   const queryClient = useQueryClient();
-  const dispatch = useDispatch();
-  const city = useSelector((state: any) => state.City.city);
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const dispatch = useAppDispatch();
+  const city = useAppSelector((state) => state.City.city);
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   const storeClosedSoft =
-    useSelector((state: any) => state.ShopMode?.storeClosed) === true;
+    useAppSelector((state) => state.ShopMode?.storeClosed) === true;
   const isHydrated = useIsHydrated();
   const latitude = !isHydrated
     ? initialHomeLayout?.latitude
@@ -70,13 +70,13 @@ const HomeLayout = ({ initialHomeLayout = null }: HomeLayoutProps) => {
     languageId: language?.id,
   });
   const ssrShopMode = initialHomeLayout?.shopMode || SHOP_MODE_SSR_DEFAULT;
-  const persistedShopMode = useSelector((state: any) => state.ShopMode.mode);
+  const persistedShopMode = useAppSelector((state) => state.ShopMode.mode);
   const shopMode = isHydrated ? persistedShopMode : ssrShopMode;
   const prevShopMode = useRef(shopMode);
   const hydrationHandledRef = useRef(false);
 
   // Adopt the channel the SSR body was rendered in, unless a default is already applied.
-  const defaultApplied = useSelector((state: any) => state.ShopMode.defaultApplied);
+  const defaultApplied = useAppSelector((state) => state.ShopMode.defaultApplied);
   const ssrModeAdoptedRef = useRef(false);
   useEffect(() => {
     if (!isHydrated || ssrModeAdoptedRef.current) return;

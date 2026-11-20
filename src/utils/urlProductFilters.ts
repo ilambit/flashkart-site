@@ -227,9 +227,11 @@ export function buildFilterApiParams(
 }
 
 
-// The eight keys customer/products accepts inside a banner's `redirect_params`.
+// The keys customer/products accepts inside a banner's `redirect_params`.
+// data_source rides along: it tells the API to read category_id as a subtree.
 const REDIRECT_PARAM_KEYS = [
   "category_id",
+  "data_source",
   "brand_ids",
   "attribute_value_ids",
   "min_price",
@@ -258,6 +260,17 @@ export function sanitizeRedirectParams(
   return clean;
 }
 
+// Admin-set heading for the screen a redirect opens. Blank means "use the
+// category or brand name", which is what the listing falls back to.
+export function withListingTitle(
+  query: Record<string, string>,
+  title?: string | null,
+): Record<string, string> {
+  const clean = String(title ?? "").trim();
+  if (clean) query[LISTING_TITLE_PARAM] = clean;
+  return query;
+}
+
 // Turn a banner's redirect_params into the listing's own query object.
 // `categorySlug` replaces redirect_params.category_id, which arrives as an id
 // while the listing URL carries slugs.
@@ -284,5 +297,52 @@ export function buildProductsRedirectQuery(
   if (clean.min_price) query.price_min = clean.min_price;
   if (clean.max_price) query.price_max = clean.max_price;
   if (title) query[LISTING_TITLE_PARAM] = title;
+  return query;
+}
+
+// "Product list with filters" keys a product slider (or one tab) carries beside
+// its products, when its data source is automatic (top_selling, trending, …).
+export const SLIDER_FILTER_KEYS = [
+  "attribute_value_ids",
+  "min_price",
+  "max_price",
+  "min_discount_percent",
+  "max_discount_percent",
+] as const;
+
+// First non-blank value per key, in source order (tab beats section config).
+export function pickSliderFilters(...sources: any[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of SLIDER_FILTER_KEYS) {
+    for (const source of sources) {
+      const value = source?.[key];
+      if (value == null || String(value).trim() === "") continue;
+      out[key] = Array.isArray(value)
+        ? value.filter((v: any) => v != null && v !== "").join(",")
+        : String(value).trim();
+      break;
+    }
+  }
+  return out;
+}
+
+// A slider's filters as listing URL keys, so "View more" repeats the same set.
+// Values pass through as received — no reorder, round or reformat.
+export function sliderFiltersToQuery(
+  sliderFilters: Record<string, string>,
+): Record<string, string> {
+  const query = serializeFilterPatch(
+    {},
+    {
+      attribute_value_ids: sliderFilters.attribute_value_ids
+        ? sliderFilters.attribute_value_ids.split(",")
+        : null,
+      min_discount_percent: sliderFilters.min_discount_percent || null,
+      max_discount_percent: sliderFilters.max_discount_percent || null,
+    },
+  ) as Record<string, string>;
+  // Raw bounds: a slider can carry one side only ("under 30,000").
+  if (sliderFilters.min_price) query.price_min = sliderFilters.min_price;
+  if (sliderFilters.max_price) query.price_max = sliderFilters.max_price;
   return query;
 }

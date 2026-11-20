@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import React, { useRef, useState, useEffect, useLayoutEffect } from "react";
-import { useSelector } from "react-redux";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { FreeMode, Mousewheel } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
@@ -53,6 +53,8 @@ const Tab = React.memo(function Tab({
             src={headerIcon || image}
             width={120}
             height={120}
+            fetchPriority="low"
+            sizes="28px"
             alt={label}
             className="w-full h-full aspect-square object-contain"
           />
@@ -88,7 +90,7 @@ const CategoryTabs = ({
   onSelect,
   device = "web",
 }: CategoryTabsProps) => {
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   // LTR until hydrated to match SSR.
   const isHydrated = useIsHydrated();
   const dir = isHydrated ? language?.type : undefined;

@@ -1,8 +1,8 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
-import { useSelector } from "react-redux";
 import { t } from "@/utils/translation";
 import useLazyLottie from "@/hooks/useLazyLottie";
 
@@ -53,8 +53,8 @@ const recolorAccent = (anim: any, rgb: number[] | null): any => {
  * Full-screen store closed page fallback.
  */
 const StoreClosed = () => {
-  const webSettings = useSelector(
-    (state: any) => state.Setting?.setting?.web_settings,
+  const webSettings = useAppSelector(
+    (state) => state.Setting?.setting?.web_settings,
   );
   const resolvedTheme: string = "light";
   const primaryColor = useMemo(() => {

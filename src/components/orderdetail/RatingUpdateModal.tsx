@@ -44,10 +44,9 @@ const RatingUpdateModal = ({
         setReview(response?.data?.review);
         setOldRatingImages(response?.data?.images);
       } else {
-        console.log("Error", response.message);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[RatingUpdateModal]", error);
     }
   };
 
@@ -127,7 +126,6 @@ const RatingUpdateModal = ({
         if (buttonRef.current) buttonRef.current.disabled = false;
       }
     } catch (error) {
-      console.log("error", error);
       if (buttonRef.current) buttonRef.current.disabled = false;
     }
   };

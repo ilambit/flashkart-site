@@ -1,17 +1,13 @@
+import { useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { t } from "@/utils/translation";
 import { FaMinus, FaPlus, FaRegEye, FaStar } from "react-icons/fa";
 import Link from "next/link";
 import {
   MdAddShoppingCart} from "react-icons/md";
-import VariantsModal from "../variantsmodal/VariantsModal";
-import AddonsModal from "../addonsmodal/AddonsModal";
-import AddonRepeatModal from "../addonsmodal/AddonRepeatModal";
-import AddonLinesModal from "../addonsmodal/AddonLinesModal";
-import ProductDetailModal from "../productdetailmodal/ProductDetailModal";
-import { useSelector } from "react-redux";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import MobileCardGallery from "./MobileCardGallery";
+import HoverImageStack from "./HoverImageStack";
 import FewLeftBadge from "./FewLeftBadge";
 import TimeIcon from "./TimeIcon";
 import {
@@ -28,6 +24,13 @@ import { RingBell } from "@/components/ui/bell-toggle/BellToggle";
 import ProductTypeTag from "../productdetail/ProductTypeTag";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
 
+import dynamic from "next/dynamic";
+import MountOnOpen from "./MountOnOpen";
+const VariantsModal = dynamic(() => import("../variantsmodal/VariantsModal"), { ssr: false });
+const AddonsModal = dynamic(() => import("../addonsmodal/AddonsModal"), { ssr: false });
+const AddonRepeatModal = dynamic(() => import("../addonsmodal/AddonRepeatModal"), { ssr: false });
+const AddonLinesModal = dynamic(() => import("../addonsmodal/AddonLinesModal"), { ssr: false });
+const ProductDetailModal = dynamic(() => import("../productdetailmodal/ProductDetailModal"), { ssr: false });
 interface ListViewProductCardProps {
   product: any;
   radius?: number | string | null;
@@ -42,8 +45,8 @@ const ListViewProductCard = ({
   // Format currency with zone defaults
   const { currency, decimals } = useCurrency(product);
   const money = (val: number) => formatCurrency(val, currency, decimals, true);
-  const city = useSelector((state: any) => state.City.city);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const city = useAppSelector((state) => state.City.city);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
 
   // Quick delivery label gated on hydration
   const hydrated = useIsHydrated();
@@ -62,10 +65,7 @@ const ListViewProductCard = ({
 
   const {
     cart,
-    setting,
     selectedVariant,
-    setSelectedVariant,
-    isProductAlreadyAdded,
     addedQuantity,
     maxQty,
     guestMaxQty,
@@ -126,7 +126,11 @@ const ListViewProductCard = ({
   const [hoverImgIdx, setHoverImgIdx] = useState(0);
   const hoverTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Drives the gallery's mount: hovering is the intent to see every frame.
+  const [hoverActive, setHoverActive] = useState(false);
+
   const startHoverSlide = () => {
+    setHoverActive(true);
     if (galleryImages.length <= 1) return;
     if (hoverTimerRef.current) return;
     hoverTimerRef.current = setInterval(() => {
@@ -139,6 +143,7 @@ const ListViewProductCard = ({
       clearInterval(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
+    setHoverActive(false);
     setHoverImgIdx(0);
   };
 
@@ -149,21 +154,6 @@ const ListViewProductCard = ({
     const actualDiscountPrice = difference / actualPrice;
     return actualDiscountPrice * 100;
   };
-  const getProductQuantities = (products: any[]) => {
-    return Object.entries(
-      products?.reduce((quantities: Record<string, number>, product: any) => {
-        const existingQty = quantities[product.product_id] || 0;
-        return {
-          ...quantities,
-          [product.product_id]: existingQty + product.qty,
-        };
-      }, {}),
-    ).map(([productId, qty]) => ({
-      product_id: parseInt(productId),
-      qty,
-    }));
-  };
-
   const handleShowVariantModal = (e: React.MouseEvent, product: any) => {
     e.preventDefault();
     e.stopPropagation();
@@ -190,7 +180,6 @@ const ListViewProductCard = ({
   // flips redux on click and drops clicks while a call is running.
   const {
     liked,
-    pending: likePending,
     toggle: handleProductLikes,
     canToggle: canToggleLike,
   } = useFavoriteToggle({
@@ -260,7 +249,7 @@ const ListViewProductCard = ({
                 e.stopPropagation();
                 toggleNotify(isNotifyRequested);
               }}
-              className={`flex h-10 flex-1 min-w-0 basis-0 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-semibold whitespace-nowrap transition disabled:opacity-60 max-md:h-8 max-md:w-full max-md:flex-none max-md:gap-1 max-md:px-1.5 max-md:text-[11px] max-md:shadow-sm ${
+              className={`flex h-10 flex-1 min-w-0 basis-0 items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-semibold whitespace-nowrap transition disabled:opacity-60 max-md:h-8 max-md:w-full max-md:flex-none max-md:gap-1 max-md:px-1.5 max-md:text-[10px] max-md:shadow-sm ${
                 isNotifyRequested
                   ? "border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500"
                   : "primaryBorderColor primaryColor bg-white dark:bg-zinc-900 hover:primaryLightBack"
@@ -323,14 +312,18 @@ const ListViewProductCard = ({
                       : handleIntialAddToCart(e),
                   )}
                   {...closedProps}
-                  className={`flex h-10 flex-1 min-w-0 basis-0 flex-col items-center justify-center overflow-hidden rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 text-sm font-semibold whitespace-nowrap hover:primaryLightBack transition px-3 max-md:h-8 max-md:w-full max-md:flex-none max-md:px-1.5 max-md:text-[11px] max-md:shadow-sm ${closedProps.className ?? ""}`}
+                  className={`flex h-10 flex-1 min-w-0 basis-0 flex-col items-center justify-center overflow-hidden rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 text-sm font-semibold whitespace-nowrap hover:primaryLightBack transition px-3 max-md:w-full max-md:flex-none max-md:text-[11px] max-md:shadow-sm ${
+                    hasAddons || productsVariants?.length > 1
+                      ? "max-md:h-auto max-md:justify-between max-md:p-0"
+                      : "max-md:h-8 max-md:px-1.5"
+                  } ${closedProps.className ?? ""}`}
                 >
-                  <span className="flex items-center gap-1.5 leading-none">
+                  <span className="flex items-center gap-1.5 leading-none max-md:h-6 max-md:w-full max-md:flex-none max-md:items-center max-md:justify-center max-md:py-0 max-md:text-[11px] max-md:font-bold max-md:tracking-normal max-md:uppercase">
                     <MdAddShoppingCart size={16} className="shrink-0 max-md:hidden" />
                     {t("add")}
                   </span>
                   {(hasAddons || productsVariants?.length > 1) && (
-                    <span className="w-full truncate text-center text-[9px] font-medium normal-case leading-none mt-0.5 opacity-80">
+                    <span className="w-full truncate text-center text-[9px] font-medium normal-case leading-none mt-0.5 opacity-80 max-md:mt-0 max-md:flex max-md:h-[13px] max-md:shrink-0 max-md:items-center max-md:justify-center max-md:bg-[var(--primary-color)] max-md:px-1 max-md:py-0 max-md:text-[8px] max-md:font-semibold max-md:leading-none max-md:text-white max-md:opacity-100">
                       {hasAddons
                         ? t("addon_customisable")
                         : `${productsVariants?.length} ${t("options") || "options"}`}
@@ -362,11 +355,11 @@ const ListViewProductCard = ({
       >
         {/* Image — fixed square, top-aligned so card height is driven by content,
             not a stretched image. Keeps every card the same height across a row. */}
-        <div className="relative shrink-0 self-start max-md:pb-3">
+        <div className="relative shrink-0 self-start">
         <div className="relative w-24 h-24 max-md:w-[108px] max-md:h-[108px] sm:w-28 sm:h-28 overflow-hidden rounded-xl bg-[#f7f8fa] dark:bg-zinc-800">
           {hasDiscount && (discountPercent ?? 0) > 0 && (
             <span
-              className={`absolute -left-10 top-4 z-10 w-32 -rotate-45 rtl:left-auto rtl:-right-10 rtl:rotate-45 primaryBackColor py-1 text-center text-[11px] font-bold uppercase leading-none tracking-wide text-white shadow-md ${closedDecorClass}`}
+              className={`max-md:hidden absolute -left-10 top-4 z-10 w-32 -rotate-45 rtl:left-auto rtl:-right-10 rtl:rotate-45 primaryBackColor py-1 text-center text-[11px] font-bold uppercase leading-none tracking-wide text-white shadow-md ${closedDecorClass}`}
             >
               {Math.round(discountPercent ?? 0)}% {t("off")}
             </span>
@@ -408,29 +401,24 @@ const ListViewProductCard = ({
                 product?.product_name ??
                 product?.name
               }
-              imgClassName={`p-2.5 ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
+              imgClassName={`p-2.5 max-md:p-0 max-md:object-cover ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
             />
             {/* Stacked crossfade: active slide opaque, others fade in/out. */}
             <div className="max-md:hidden absolute inset-0">
-              {galleryImages.map((img, idx) => (
-                <ImageWithPlaceholder
-                  key={img + idx}
-                  src={img}
-                  alt={
-                    product?.translations?.name ??
-                    product?.product_name ??
-                    product?.name
-                  }
-                  width={400}
-                  height={400}
-                  className={`absolute inset-0 w-full h-full object-contain p-2.5 transition-opacity duration-500 ease-out ${
-                    idx === hoverImgIdx ? "opacity-100" : "opacity-0"
-                  } ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
-                  sizes="(max-width: 640px) 40vw, 200px"
-                  quality={75}
-                  priority={idx === 0}
-                />
-              ))}
+              <HoverImageStack
+                  hovered={hoverActive}
+                images={galleryImages}
+                activeIdx={hoverImgIdx}
+                alt={
+                  product?.translations?.name ??
+                  product?.product_name ??
+                  product?.name
+                }
+                width={400}
+                height={400}
+                sizes="(max-width: 640px) 40vw, 200px"
+                imgClassName={`w-full h-full object-contain p-2.5 ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
+              />
             </div>
             </>
           ) : (
@@ -443,7 +431,7 @@ const ListViewProductCard = ({
               }
               width={400}
               height={400}
-              className={`w-full h-full object-contain p-2.5 transition duration-200 ${
+              className={`w-full h-full object-contain p-2.5 max-md:p-0 max-md:object-cover transition duration-200 ${
                 isProductAvailabel || storeClosed ? "grayscale" : ""
               }`}
               sizes="(max-width: 640px) 40vw, 200px"
@@ -457,7 +445,7 @@ const ListViewProductCard = ({
               e.preventDefault();
               e.stopPropagation();
             }}
-            className="md:hidden absolute bottom-0 end-1 z-20 w-[72px]"
+            className="md:hidden absolute bottom-0 end-0 z-20 w-[62px]"
           >
             {actionNode}
           </div>
@@ -480,7 +468,7 @@ const ListViewProductCard = ({
             </span>
           )} */}
 
-          <h3 className="text-sm sm:text-base font-bold capitalize line-clamp-1 textColor group-hover:primaryColor max-md:text-[13px] max-md:font-semibold max-md:line-clamp-2">
+          <h3 className="text-[12px] md:text-base font-bold capitalize line-clamp-1 textColor group-hover:primaryColor max-md:font-semibold max-md:line-clamp-2">
             <ProductTypeTag
               type={product?.product_type ?? product?.indicator}
               className="me-1 align-[-2px]"
@@ -492,14 +480,14 @@ const ListViewProductCard = ({
           </h3>
 
           {showQuickDelivery && !isProductAvailabel && (
-            <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-zinc-800 dark:text-zinc-300 max-md:order-last max-md:mt-1 max-md:bg-transparent max-md:px-0 max-md:font-normal max-md:text-[11px] dark:max-md:bg-transparent">
+            <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-zinc-800 dark:text-zinc-300 max-md:order-last max-md:mt-1 max-md:bg-transparent max-md:px-0 max-md:font-normal max-md:text-[10px] dark:max-md:bg-transparent">
               <TimeIcon size={12} className="primaryColor dark:text-zinc-200" />
               {t("delivery_in")} {deliveryLabel}
             </span>
           )}
 
           {!!product?.product_rating && Number(product?.rating_count) > 0 && (
-            <div className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+            <div className="mt-0.5 flex items-center gap-1 text-[10px] md:text-xs text-gray-500">
               <div className="flex">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <FaStar
@@ -530,7 +518,7 @@ const ListViewProductCard = ({
 
           {/* Price */}
           <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="text-lg font-extrabold tracking-tight textColor">
+            <span className="text-[14px] md:text-lg font-extrabold tracking-tight textColor">
               {money(
                 hasDiscount
                   ? selectedVariant?.discounted_price
@@ -538,14 +526,21 @@ const ListViewProductCard = ({
               )}
             </span>
             {hasDiscount && (
-              <span className="text-xs line-through text-gray-400 dark:text-zinc-500">
+              <span className="text-[10px] md:text-xs line-through text-gray-400 dark:text-zinc-500">
                 {money(selectedVariant?.price)}
               </span>
             )}
           </div>
 
+          {/* Phone shows the saving as text — the image is too small for a ribbon. */}
+          {hasDiscount && (discountPercent ?? 0) > 0 && (
+            <span className="md:hidden mt-0.5 text-[11px] font-bold text-green-600">
+              {Math.round(discountPercent ?? 0)}% {t("off")}
+            </span>
+          )}
+
           {variantLabel && (
-            <span className="md:hidden mt-0.5 line-clamp-1 text-[11px] text-gray-500 dark:text-zinc-400">
+            <span className="md:hidden mt-0.5 line-clamp-1 text-[10px] text-gray-500 dark:text-zinc-400">
               {variantLabel}
             </span>
           )}
@@ -578,39 +573,49 @@ const ListViewProductCard = ({
           </div>
         </div>
       </Link>
-      <ProductDetailModal
-        product={product}
-        showDetailModal={showProductDetail}
-        setShowDetailModal={setShowProductDetail}
-      />
-      <VariantsModal
-        product={product}
-        showVariants={showVariants}
-        setShowVariants={setShowVariants}
-      />
-      <AddonsModal
-        product={product}
-        showAddons={showAddons}
-        setShowAddons={setShowAddons}
-        variant={selectedVariant}
-      />
-      <AddonRepeatModal
-        open={showAddonRepeat}
-        setOpen={setShowAddonRepeat}
-        product={product}
-        lastLine={lastAddonLine}
-        onRepeat={repeatLastAddonLine}
-        onAddNew={openAddonSheetAfterClose}
-      />
-      <AddonLinesModal
-        open={showAddonLines}
-        setOpen={setShowAddonLines}
-        product={product}
-        lines={addonLines}
-        onRemoveLine={removeAddonLine}
-        onRepeatLine={repeatAddonLine}
-        onAddNew={openAddonSheetAfterClose}
-      />
+      <MountOnOpen open={showProductDetail}>
+        <ProductDetailModal
+          product={product}
+          showDetailModal={showProductDetail}
+          setShowDetailModal={setShowProductDetail}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showVariants}>
+        <VariantsModal
+          product={product}
+          showVariants={showVariants}
+          setShowVariants={setShowVariants}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddons}>
+        <AddonsModal
+          product={product}
+          showAddons={showAddons}
+          setShowAddons={setShowAddons}
+          variant={selectedVariant}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddonRepeat}>
+        <AddonRepeatModal
+          open={showAddonRepeat}
+          setOpen={setShowAddonRepeat}
+          product={product}
+          lastLine={lastAddonLine}
+          onRepeat={repeatLastAddonLine}
+          onAddNew={openAddonSheetAfterClose}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddonLines}>
+        <AddonLinesModal
+          open={showAddonLines}
+          setOpen={setShowAddonLines}
+          product={product}
+          lines={addonLines}
+          onRemoveLine={removeAddonLine}
+          onRepeatLine={repeatAddonLine}
+          onAddNew={openAddonSheetAfterClose}
+        />
+      </MountOnOpen>
     </div>
   );
 };

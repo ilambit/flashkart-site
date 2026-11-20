@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useCallback, useEffect, useState } from "react";
 import BreadCrumb from "../breadcrumb/BreadCrumb";
 import * as api from "@/api/apiRoutes";
-import { useDispatch, useSelector } from "react-redux";
 import { clearAllFilter } from "@/redux/slices/productFilterSlice";
 import { useRouter } from "next/navigation";
 import Country from "./Country";
@@ -15,8 +15,8 @@ const CountryListing = () => {
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
   const router = useRouter();
-  const dispatch = useDispatch();
-  const city = useSelector((state: any) => state.City.city);
+  const dispatch = useAppDispatch();
+  const city = useAppSelector((state) => state.City.city);
 
   const countriesPerPage = 12;
   const [countries, setCountries] = useState<any[]>([]);
@@ -33,11 +33,9 @@ const CountryListing = () => {
         latitude: city?.latitude,
         longitude: city?.longitude,
       });
-      console.log(response?.data);
       setCountries(response?.data);
     } catch (error) {
       setIsError(true);
-      console.log("Error:", error);
     }
     setIsLoading(false);
   }, [city]);

@@ -84,12 +84,6 @@ const ShareDrawer = ({ open, onClose, url, title, description, image }: ShareDra
   // Log share details on open
   useEffect(() => {
     if (!open) return;
-    console.log("[ShareDrawer] share data", {
-      url,
-      title,
-      description,
-      image,
-    });
   }, [open, url, title, description, image]);
 
   // Close drawer on Escape key
@@ -107,7 +101,6 @@ const ShareDrawer = ({ open, onClose, url, title, description, image }: ShareDra
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(url);
-    console.log("[ShareDrawer] copied link to clipboard:", url);
     toast.success(t("link_copied_to_clipboard"));
   };
 

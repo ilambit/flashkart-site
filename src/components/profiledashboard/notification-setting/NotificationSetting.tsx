@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { t } from "@/utils/translation";
 import * as api from "@/api/apiRoutes";
 import { Switch } from "@/components/ui/switch";
@@ -52,7 +52,6 @@ const NotificationSetting = () => {
       const list = Array.isArray(res?.data) ? res.data : [];
       setCategories(list);
     } catch (error) {
-      console.log("error", error);
     } finally {
       setLoading(false);
     }
@@ -111,7 +110,6 @@ const NotificationSetting = () => {
         toast.error(res?.message);
       }
     } catch (error) {
-      console.log("error", error);
     } finally {
       setSubmitting(false);
     }

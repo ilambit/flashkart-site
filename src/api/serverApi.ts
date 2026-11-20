@@ -6,9 +6,7 @@ import { HOME_LAYOUT_INITIAL_SECTION_LIMIT } from "@/constants/homeLayout";
 // Server-only API helpers for SSR/gSSP with explicit inputs
 
 const ACCESS_KEY = "903361";
-const rawUrl = process.env.NEXT_PUBLIC_API_URL || "https://panel.makkalstarmart.com";
-const rawSubUrl = process.env.NEXT_PUBLIC_API_SUBURL || "/customer";
-const BASE = `${rawUrl.replace(/\/+$/, "")}/${rawSubUrl.replace(/^\/+|\/+$/g, "")}`;
+const BASE = `${process.env.NEXT_PUBLIC_API_URL}${process.env.NEXT_PUBLIC_API_SUBURL}`;
 
 const serverHeaders = ({
   lang,
@@ -179,6 +177,21 @@ export const getSettingServer = async ({
 }: { lang?: string } = {}): Promise<any> => {
   return getWithEtag(`${BASE}/${apiEndPoints.getSettings}`, {
     params: { is_web_setting: 1 },
+    headers: serverHeaders({ lang }),
+  });
+};
+
+/** Fetch country-level settings (policy overrides) server-side */
+export const getCountrySettingServer = async ({
+  latitude,
+  longitude,
+  lang,
+}: { latitude?: number; longitude?: number; lang?: string } = {}): Promise<any> => {
+  const params: Record<string, any> = {};
+  if (latitude) params.latitude = latitude;
+  if (longitude) params.longitude = longitude;
+  return getWithEtag(`${BASE}/${apiEndPoints.getCountrySetting}`, {
+    params,
     headers: serverHeaders({ lang }),
   });
 };

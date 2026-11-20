@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import AboutUsPage from "@/components/pagecomponents/AboutUsPage";
+import AboutUs from "@/components/about-us/AboutUs";
+import { getCmsRawHtml } from "@/utils/cmsContent";
 import { fetchSeoRow } from "@/utils/fetchSeoRow";
 import { buildPageMetadata } from "@/utils/buildMetadata";
 import { canonicalUrl, hreflangAlternates } from "@/utils/canonicalUrl";
@@ -58,6 +59,7 @@ export default async function AboutUsRoute({
   params: Params;
 }) {
   const { lang } = await params;
+  const html = await getCmsRawHtml({ lang, settingKey: "about_us" });
   const [seo, { langCodes }] = await Promise.all([loadAboutUsSeo(lang), loadLangInfo()]);
 
   return (
@@ -71,7 +73,7 @@ export default async function AboutUsRoute({
       )}
       {/* SEO H1 — CMS body has none, so visually hidden. */}
       {seo.title && <h1 className="sr-only">{seo.title}</h1>}
-      <AboutUsPage />
+      <AboutUs html={html} />
     </div>
   );
 }

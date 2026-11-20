@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react'
-import { useSelector } from 'react-redux'
+import { useAppSelector } from "@/redux/hooks";
+import { useEffect } from 'react'
 import HomeOfferModal from '../homepageoffermodal/HomeOfferModal'
 import Loader from '../loader/Loader'
 import HomeLayout from '../homelayout/HomeLayout'
@@ -12,8 +12,8 @@ interface HomePageProps {
 
 const HomePage = ({ initialHomeLayout = null, heading = null }: HomePageProps) => {
 
-    const setting = useSelector((state: any) => state.Setting)
-    const language = useSelector((state: any) => state.Language.selectedLanguage)
+    const setting = useAppSelector((state) => state.Setting)
+    const language = useAppSelector((state) => state.Language.selectedLanguage)
     const hydrated = useIsHydrated()
 
     useEffect(() => { }, [language?.id])

@@ -1,4 +1,4 @@
-import React from 'react'
+import { useAppSelector } from "@/redux/hooks";
 import {
     Sheet,
     SheetContent,
@@ -8,7 +8,6 @@ import {
 import { RiCloseFill } from "react-icons/ri";
 import { t } from '@/utils/translation';
 import ProfileSidebar from './ProfileSidebar';
-import { useSelector } from 'react-redux';
 
 interface ProfileDrawerProps {
     showProfile: boolean;
@@ -19,7 +18,7 @@ interface ProfileDrawerProps {
 
 const ProfileDrawer = ({ showProfile, setShowProfile, selectedTab, setSelectedTab }: ProfileDrawerProps) => {
 
-    const language = useSelector((state: any) => state.Language.selectedLanguage)
+    const language = useAppSelector((state) => state.Language.selectedLanguage)
 
     return (
         <Sheet open={showProfile} >

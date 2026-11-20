@@ -1,8 +1,8 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import { t } from "@/utils/translation";
 import SearchProductRow from "@/components/search/SearchProductRow";
@@ -12,10 +12,10 @@ const LIMIT = 15;
 
 // Logged-in user's wishlist as a single horizontally scrolling row.
 const SearchWishlistProducts = ({ enabled }: { enabled: boolean }) => {
-  const jwtToken = useSelector((s: any) => s.User?.jwtToken);
-  const latitude = useSelector((s: any) => s.City?.city?.latitude);
-  const longitude = useSelector((s: any) => s.City?.city?.longitude);
-  const favCount = useSelector((s: any) => s.Favorite?.favouriteProductIds?.length || 0);
+  const jwtToken = useAppSelector((s) => s.User?.jwtToken);
+  const latitude = useAppSelector((s) => s.City?.city?.latitude);
+  const longitude = useAppSelector((s) => s.City?.city?.longitude);
+  const favCount = useAppSelector((s) => s.Favorite?.favouriteProductIds?.length || 0);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["search-wishlist-products", jwtToken, latitude, longitude, favCount],

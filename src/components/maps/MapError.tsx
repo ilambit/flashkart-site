@@ -1,4 +1,4 @@
-import { MapPinOff } from "lucide-react";
+import { LuMapPinOff } from "react-icons/lu";
 
 interface MapErrorProps {
   message?: string;
@@ -23,7 +23,7 @@ export default function MapError({
       style={{ height: h }}
       role="alert"
     >
-      <MapPinOff className="h-7 w-7 text-gray-400" aria-hidden="true" />
+      <LuMapPinOff className="h-7 w-7 text-gray-400" aria-hidden="true" />
       <p className="text-sm text-gray-500 dark:text-gray-400">{message}</p>
     </div>
   );

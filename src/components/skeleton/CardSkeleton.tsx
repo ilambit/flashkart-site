@@ -1,4 +1,3 @@
-import React from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
@@ -6,7 +5,7 @@ interface CardSkeletonProps {
   height?: number | string;
   width?: number | string;
   padding?: string;
-  variant?: "block" | "list" | "order" | "product";
+  variant?: "block" | "list" | "order" | "product" | "transaction";
 }
 
 // Reusable skeleton component supporting block, list, order, and product layout variants
@@ -80,6 +79,27 @@ const CardSkeleton = ({ height, width = "100%", padding, variant = "block" }: Ca
                             <Skeleton height={12} width={42} />
                         </div>
                         <Skeleton height={36} width={92} borderRadius={8} />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Mirrors TransactionCard row: icon, method + id/date, amount + status.
+    if (variant === "transaction") {
+        return (
+            <div className="m-1.5 flex items-center gap-3 rounded-xl border cardBorder bg-white dark:bg-zinc-900 p-3">
+                <Skeleton height={40} width={40} borderRadius={8} containerClassName="shrink-0 leading-none" />
+                <div className="min-w-0 flex-grow">
+                    <Skeleton height={14} width="45%" />
+                    <div className="mt-0.5">
+                        <Skeleton height={11} width="65%" />
+                    </div>
+                </div>
+                <div className="shrink-0 flex flex-col items-end">
+                    <Skeleton height={16} width={64} />
+                    <div className="mt-1">
+                        <Skeleton height={11} width={48} />
                     </div>
                 </div>
             </div>

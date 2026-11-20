@@ -37,7 +37,6 @@ const GLOBAL_LANG_ROUTES: [string, string, string][] = [
 // Not language-aware — listed once, no lang variants.
 const STATIC_ROUTES: [string, string, string][] = [
   ["/brands", "0.7", "weekly"],
-  ["/sellers", "0.7", "weekly"],
   ["/countries", "0.6", "weekly"],
 ];
 

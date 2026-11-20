@@ -5,7 +5,6 @@ import "swiper/css";
 import "swiper/css/navigation";
 import { Navigation } from "swiper/modules";
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
-import { BiHeart, BiSolidHeart } from "react-icons/bi";
 import { RiShareForwardLine } from "react-icons/ri";
 import { MdOutlineZoomOutMap } from "react-icons/md";
 import useHydratedMediaQuery from "@/hooks/useHydratedMediaQuery";

@@ -1,8 +1,7 @@
-import React from "react";
+import { useAppSelector } from "@/redux/hooks";
 import { FiShield, FiX } from "react-icons/fi";
 import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
 import { t } from "@/utils/translation";
-import { useSelector } from "react-redux";
 import ResetPassword from "./ResetPassword";
 
 /** Change password modal dialog component */
@@ -12,7 +11,7 @@ interface ResetPasswordModalProps {
 }
 
 const ResetPasswordModal = ({ showResetPassword, setShowResetPassword }: ResetPasswordModalProps) => {
-  const theme = useSelector((state: any) => state.Theme.theme);
+  const theme = useAppSelector((state) => state.Theme.theme);
   const close = () => setShowResetPassword(false);
 
   return (

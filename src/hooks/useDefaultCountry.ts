@@ -1,13 +1,13 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import { setDefaultCountry } from "@/redux/slices/locationModalSlice";
 
 /** Hook to resolve and store default country on application startup. */
 const useDefaultCountry = (): { resolving: boolean } => {
-  const dispatch = useDispatch();
-  const selectedCountry = useSelector(
-    (state: any) => state?.LocationModal?.selectedCountry,
+  const dispatch = useAppDispatch();
+  const selectedCountry = useAppSelector(
+    (state) => state?.LocationModal?.selectedCountry,
   );
   const [resolving, setResolving] = useState(!selectedCountry?.id);
   // Guard against duplicate fetch requests across renders and remounts.
@@ -32,7 +32,6 @@ const useDefaultCountry = (): { resolving: boolean } => {
         if (fallback) dispatch(setDefaultCountry(fallback));
       })
       .catch((err: any) => {
-        console.log("Default country fetch failed:", err?.message);
         requested.current = false;
       })
       .finally(() => {

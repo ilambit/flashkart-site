@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { LuChevronRight, LuChevronDown } from "react-icons/lu";
 
 interface CategoryTreeNode {
   title: string;
@@ -216,11 +216,11 @@ const CategoryTree = ({
                 className="focus:outline-none flex items-center justify-center"
               >
                 {isExpanded ? (
-                  <ChevronDown
+                  <LuChevronDown
                     className={`h-4 w-4 ${state !== "unchecked" ? "primaryColor" : "text-gray-500"}`}
                   />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                  <LuChevronRight className="h-4 w-4 text-gray-500" />
                 )}
               </button>
             )}

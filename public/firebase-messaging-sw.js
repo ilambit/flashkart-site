@@ -1,30 +1,59 @@
-importScripts(
-  "https://www.gstatic.com/firebasejs/11.1.0/firebase-app-compat.js"
-);
-importScripts(
-  "https://www.gstatic.com/firebasejs/11.1.0/firebase-messaging-compat.js"
-);
+// Plain Web Push handler: no Firebase SDK or config needed in the worker.
+// FCM tokens are still created in the page (src/utils/firebase.ts) and this
+// worker only receives the resulting push events.
 
-// Must be initializeApp, not a bare config object: firebase.messaging() below
-// reads the default app, and without this call it throws during script
-// evaluation — which fails the whole service worker registration.
-firebase.initializeApp({
-  apiKey: "AIzaSyC4X81-HpgrbDOBq9Mn7CcHctxK8d5AoH0",
-  authDomain: "makkalstarmart.firebaseapp.com",
-  projectId: "makkalstarmart",
-  storageBucket: "makkalstarmart.firebasestorage.app",
-  messagingSenderId: "947085968127",
-  appId: "1:947085968127:web:4b630776b031f8003f02ca",
-  measurementId: "G-DKCP5RJB2B",
+self.addEventListener('push', (event) => {
+    if (!event.data) return;
+
+    let payload;
+    try {
+        payload = event.data.json();
+    } catch {
+        return;
+    }
+    const notification = payload.notification || {};
+    const data = payload.data || {};
+    // Support notification messages and data-only messages.
+    const title = notification.title || data.title;
+    if (!title) return;
+
+    const options = {
+        body: notification.body || data.body,
+        icon: notification.icon || data.icon || data.image || '/favicon.ico',
+        data: { url: data.url || data.click_action || '/' },
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
 });
 
-const messaging = firebase.messaging();
+// Only same-origin targets are allowed; anything else falls back to the home page.
+const resolveTargetUrl = (raw) => {
+    try {
+        const url = new URL(raw || '/', self.location.origin);
+        return url.origin === self.location.origin ? url.href : self.location.origin + '/';
+    } catch {
+        return self.location.origin + '/';
+    }
+};
 
-messaging.onBackgroundMessage((payload) => {
-  const notificationTitle = payload.data.title;
-  const notificationOptions = {
-    body: payload.data.body,
-    icon: payload.data.icon,
-  };
-  self.registration.showNotification(notificationTitle, notificationOptions);
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    const targetUrl = resolveTargetUrl(event.notification.data && event.notification.data.url);
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
+            for (const client of clientsList) {
+                const clientUrl = new URL(client.url);
+                if (clientUrl.origin === self.location.origin && 'focus' in client) {
+                    client.focus();
+                    if ('navigate' in client) {
+                        return client.navigate(targetUrl);
+                    }
+                    return;
+                }
+            }
+            return self.clients.openWindow(targetUrl);
+        })
+    );
 });

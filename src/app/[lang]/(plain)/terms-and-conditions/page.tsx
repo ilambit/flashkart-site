@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import TermsAndCondititionsPage from "@/components/pagecomponents/TermsAndCondititionsPage";
+import CmsPage from "@/components/cms/CmsPage";
+import { getCmsHtml } from "@/utils/cmsContent";
 import LanguageCodesSeed from "@/app/LanguageCodesSeed";
 import { fetchSeoRow, resolveZoneForSeo } from "@/utils/fetchSeoRow";
 import { buildPageMetadata } from "@/utils/buildMetadata";
@@ -62,6 +63,7 @@ export default async function TermsAndConditionsRoute({
   params: Params;
 }) {
   const { lang } = await params;
+  const html = await getCmsHtml({ lang, settingKey: "terms_conditions", countryKey: "terms_conditions" });
   const result = await loadTermsData(lang);
   if (result.notFound) notFound();
 
@@ -76,7 +78,7 @@ export default async function TermsAndConditionsRoute({
       )}
       {/* SEO H1 — CMS body has none, so visually hidden. */}
       {result.seo.title && <h1 className="sr-only">{result.seo.title}</h1>}
-      <TermsAndCondititionsPage />
+      <CmsPage html={html} align="start" />
     </div>
   );
 }

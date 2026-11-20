@@ -1,6 +1,6 @@
 "use client";
 
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
 import useIsHydrated from "@/hooks/useIsHydrated";
 
 /** App-wide source of truth for zone-aware currency display with hydration protection. */
@@ -19,10 +19,10 @@ interface FallbackCurrencySource {
 export default function useCurrency(
   lastResortFallback?: FallbackCurrencySource | null,
 ): CurrencyResult {
-  const countrySetting = useSelector(
-    (state: any) => state.CountrySetting?.countrySetting,
+  const countrySetting = useAppSelector(
+    (state) => state.CountrySetting?.countrySetting,
   );
-  const globalSetting = useSelector((state: any) => state.Setting?.setting);
+  const globalSetting = useAppSelector((state) => state.Setting?.setting);
   const hydrated = useIsHydrated();
 
   if (!hydrated) {

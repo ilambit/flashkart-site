@@ -1,8 +1,8 @@
 "use client";
+import { useAppSelector } from "@/redux/hooks";
 import React, { useState } from "react";
 import Image, { type StaticImageData } from "next/image";
 import ImagePlaceholder from "../../assets/image-placeholder/image.png";
-import { useSelector } from "react-redux";
 import useIsHydrated from "@/hooks/useIsHydrated";
 
 interface ImageWithPlaceholderProps {
@@ -11,11 +11,17 @@ interface ImageWithPlaceholderProps {
   className?: string;
   handleOnClick?: React.MouseEventHandler<HTMLImageElement>;
   priority?: boolean;
+  /** "low" keeps decorative art from preempting the page's LCP image. */
+  fetchPriority?: "high" | "low" | "auto";
   sizes?: string;
   quality?: number;
   width?: number;
   height?: number;
   fill?: boolean;
+  /** Overrides next/image's lazy default; ignored when `priority` is set. */
+  loading?: "eager" | "lazy";
+  /** Fires once the real image has decoded. */
+  onReady?: () => void;
 }
 
 const ImageWithPlaceholder = ({
@@ -24,12 +30,15 @@ const ImageWithPlaceholder = ({
   className,
   handleOnClick,
   priority,
+  fetchPriority,
   sizes,
   quality,
   width,
   height,
+  loading,
+  onReady,
 }: ImageWithPlaceholderProps) => {
-  const setting = useSelector((state: any) => state.Setting);
+  const setting = useAppSelector((state) => state.Setting);
   const [isLoading, setIsLoading] = useState(!src);
   const [isError, setIsError] = useState(false);
   // Use fallback placeholder until hydrated
@@ -47,10 +56,13 @@ const ImageWithPlaceholder = ({
         : {fill: true, sizes: sizes || "100vw" })}
       quality={quality}
       priority={priority}
+      {...(priority ? {} : { loading })}
+      fetchPriority={fetchPriority}
       className={className}
       onClick={handleOnClick}
       onLoad={() => {
         setIsLoading(false);
+        onReady?.();
       }}
       onError={() => {
         setIsLoading(false);

@@ -56,7 +56,6 @@ const CountrySelect = ({
           );
         }
       } catch (error: any) {
-        console.log("Error fetching countries", error);
       }
     };
     fetchCountries();

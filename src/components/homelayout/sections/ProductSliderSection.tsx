@@ -1,11 +1,11 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { ProductStoryList } from "@/components/productstory/ProductStoryContext";
 import React from "react";
 import { IoArrowForward, IoChevronForward } from "react-icons/io5";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
-import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import HomeVerticleProductCard from "../../productcards/HomeVerticleProductCard";
 import HomeListViewCard from "../../productcards/HomeListViewCard";
@@ -24,6 +24,11 @@ import useUrlProductFilters from "@/hooks/useUrlProductFilters";
 import useNavClick from "@/hooks/useNavClick";
 import useDir from "@/hooks/useDir";
 import { findNodeById } from "@/utils/categorySlugResolver";
+import {
+  pickSliderFilters,
+  sliderFiltersToQuery,
+  withListingTitle,
+} from "@/utils/urlProductFilters";
 import { toCssAspectRatio, pickDeviceNumber, pickDeviceImage } from "@/utils/helperFunction";
 
 interface ProductSliderSectionProps {
@@ -32,17 +37,19 @@ interface ProductSliderSectionProps {
   device?: string;
 }
 
+const adaptedCache = new WeakMap<object, any>();
+
 const ProductSliderSection = ({ block, borderRadius, device = "web" }: ProductSliderSectionProps) => {
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
   const rtl = useIsRtl();
   const tr = useT();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const { run: runNavClick } = useNavClick();
   const dir = useDir();
-  const cityLat = useSelector((state: any) => state.City.city?.latitude);
-  const cityLng = useSelector((state: any) => state.City.city?.longitude);
+  const cityLat = useAppSelector((state) => state.City.city?.latitude);
+  const cityLng = useAppSelector((state) => state.City.city?.longitude);
 
   const config = block?.config || {};
   const products = block?.products || [];
@@ -83,6 +90,9 @@ const ProductSliderSection = ({ block, borderRadius, device = "web" }: ProductSl
   );
   // Sent only for "everything except these" — never defaulted.
   const filterMode = block?.filter_mode ?? config?.filter_mode ?? "";
+  // "Product list with filters": the server already applied these to the
+  // slider, so only "View more" has to repeat them.
+  const sliderFilters = pickSliderFilters(block, config);
 
   const sourceId =
     dataSource === "category"
@@ -101,12 +111,16 @@ const ProductSliderSection = ({ block, borderRadius, device = "web" }: ProductSl
         category_ids: blockCategoryIds,
         brand_ids: blockBrandIds,
         filter_mode: filterMode,
+        ...sliderFilters,
       }),
     );
     let categoryIdPatch: string | null = null;
     let brandIdPatch: number[] | null = null;
 
-    if (dataSource === "category" && sourceId) {
+    // Single category: slug + breadcrumb. Several: raw CSV via block source
+    const singleCategory =
+      String(sourceId || "").split(",").filter((s) => s.trim()).length === 1;
+    if (dataSource === "category" && sourceId && singleCategory) {
       try {
         const res = await api.getCategories({
           latitude: cityLat,
@@ -132,7 +146,6 @@ const ProductSliderSection = ({ block, borderRadius, device = "web" }: ProductSl
           categoryIdPatch = match.slug;
         }
       } catch (error: any) {
-        console.log("See All category resolve failed", error?.message);
       }
     }
 
@@ -146,10 +159,16 @@ const ProductSliderSection = ({ block, borderRadius, device = "web" }: ProductSl
     }
 
     const qs = new URLSearchParams(
-      buildQueryPatch({
-        ...(categoryIdPatch && { category_id: categoryIdPatch }),
-        ...(brandIdPatch?.length && { brand_ids: brandIdPatch }),
-      }),
+      withListingTitle(
+        {
+          ...sliderFiltersToQuery(sliderFilters),
+          ...buildQueryPatch({
+            ...(categoryIdPatch && { category_id: categoryIdPatch }),
+            ...(brandIdPatch?.length && { brand_ids: brandIdPatch }),
+          }),
+        },
+        block?.redirect_title || config?.redirect_title || config?.section_title,
+      ),
     ).toString();
     const dest = zoneHref("/products");
     router.push(qs ? `${dest}?${qs}` : dest);
@@ -244,7 +263,14 @@ const ProductSliderSection = ({ block, borderRadius, device = "web" }: ProductSl
     : null;
   const hasPadding = blockPadding != null;
   const BASE_INLINE_PADDING = isGrid || isList ? 0 : 10;
-  const inlinePadding = isGrid || isList ? (hasPadding ? blockPadding : 0) : BASE_INLINE_PADDING;
+  // List rows draw a side border — keep a gutter so it isn't clipped at the viewport edge.
+  const inlinePadding = isList
+    ? Math.max(hasPadding ? Number(blockPadding) : 0, 8)
+    : isGrid
+      ? hasPadding
+        ? blockPadding
+        : 0
+      : BASE_INLINE_PADDING;
   const blockPaddingStyle = {
     paddingTop: hasPadding ? blockPadding : 0,
     paddingBottom: hasPadding ? blockPadding : 0,
@@ -267,10 +293,21 @@ const ProductSliderSection = ({ block, borderRadius, device = "web" }: ProductSl
     return `${(h / w) * 100}%`;
   })();
 
+  // Same adapted object per source product, so memoized cards skip re-renders.
+  const adapted = (product: any) => {
+    if (!product || typeof product !== "object") return adaptProduct(product);
+    let result = adaptedCache.get(product);
+    if (!result) {
+      result = adaptProduct(product);
+      adaptedCache.set(product, result);
+    }
+    return result;
+  };
+
   const cardWrap = (product: any) => (
     <div className="h-full">
       <HomeVerticleProductCard
-        product={adaptProduct(product)}
+        product={adapted(product)}
         radius={cardRadius}
       />
     </div>
@@ -279,12 +316,12 @@ const ProductSliderSection = ({ block, borderRadius, device = "web" }: ProductSl
   const listRow = (product: any) => (
     <HomeListViewCard
       key={product.id}
-      product={adaptProduct(product)}
+      product={adapted(product)}
       radius={cardRadius}
     />
   );
 
-  const storyProducts = products.map(adaptProduct);
+  const storyProducts = products.map(adapted);
 
   return (
     <ProductStoryList products={storyProducts}>

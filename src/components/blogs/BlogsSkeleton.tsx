@@ -1,4 +1,3 @@
-import React from "react";
 
 // Skeleton for BlogCard
 export const BlogCardSkeleton = () => {

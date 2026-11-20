@@ -169,11 +169,11 @@ export const PaymentPickerDialog = ({
                   aria-checked={walletChecked}
                   onClick={onWalletToggle}
                   className={`relative w-11 h-6 rounded-lg shrink-0 transition ${
-                    walletChecked ? "primaryBackColor" : "iconBackgroundColor"
+                    walletChecked ? "primaryBackColor" : "bg-zinc-700 dark:bg-zinc-500"
                   }`}
                 >
                   <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-lg bg-white dark:bg-zinc-900 transition-transform ${
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-lg bg-white shadow transition-transform ${
                       walletChecked ? "translate-x-5" : ""
                     }`}
                   />

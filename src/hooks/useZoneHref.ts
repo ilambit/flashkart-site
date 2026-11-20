@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useCallback } from "react";
-import { useSelector } from "react-redux";
 import { useParams } from "next/navigation";
 import { buildLocalizedPath } from "@/utils/canonicalUrl";
 import { isZonePrefixableRoute } from "@/utils/zonePrefixable";
@@ -11,8 +11,8 @@ import { useSsrZone } from "@/app/SsrZoneProvider";
 const useZoneHref = () => {
   const params = useParams<{ lang?: string; zone?: string }>();
   const { defaultCode } = useLanguages();
-  const rawStoredZone = useSelector(
-    (state: any) => state?.LocationModal?.selectedZone?.slug,
+  const rawStoredZone = useAppSelector(
+    (state) => state?.LocationModal?.selectedZone?.slug,
   );
   // Gate storedZone on hydration state to prevent SSR hydration mismatches.
   const isHydrated = useIsHydrated();

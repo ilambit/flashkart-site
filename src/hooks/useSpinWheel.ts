@@ -1,5 +1,5 @@
+import { useAppSelector } from "@/redux/hooks";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import type {
   SpinWheelData,
@@ -56,7 +56,7 @@ export const useSpinWheel = ({
 }: UseSpinWheelParams): UseSpinWheelResult => {
   const queryClient = useQueryClient();
   // User ID in query key ensures guest and authenticated state stay separated.
-  const userId = useSelector((state: any) => state.User?.user?.id ?? null);
+  const userId = useAppSelector((state) => state.User?.user?.id ?? null);
   const queryKey = ["spin-wheel", latitude, longitude, userId];
 
   const query = useQuery({

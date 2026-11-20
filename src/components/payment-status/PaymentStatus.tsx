@@ -1,8 +1,8 @@
 "use client";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useDispatch, useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import {
   clearCartPromo,
@@ -20,6 +20,7 @@ import { formatCurrency } from "@/utils/helperFunction";
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
 // Cache PhonePe transaction status per session
+const PHONEPE_POLL_MS = 3000;
 const phonepeTxnResults = new Map<
   string,
   "pending" | { status: "success" | "failed" | "pending" }
@@ -30,9 +31,9 @@ import useCurrency from "@/hooks/useCurrency";
 
 const PaymentStatus = () => {
   const zoneHref = useZoneHref();
-  const dispatch = useDispatch();
-  const phonePeData = useSelector(
-    (state: any) => state.Checkout.phonepecheckoutdetails,
+  const dispatch = useAppDispatch();
+  const phonePeData = useAppSelector(
+    (state) => state.Checkout.phonepecheckoutdetails,
   );
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,7 +57,15 @@ const PaymentStatus = () => {
     () => import("@/assets/order_place_animation/order_failed_animation.json"),
     status === "failed",
   );
-  const [type, setType] = useState<"" | "order" | "wallet" | "subscription">("");
+  const [type, setType] = useState<"" | "order" | "wallet">("");
+  // Stops PhonePe polling on unmount
+  const pollAlive = React.useRef(true);
+  useEffect(() => {
+    pollAlive.current = true;
+    return () => {
+      pollAlive.current = false;
+    };
+  }, []);
   // Order receipt details
   const [order, setOrder] = useState<any>(null);
   // Auto-redirect countdown in seconds
@@ -93,17 +102,9 @@ const PaymentStatus = () => {
     order_id?: string;
   }) => type === "wallet" || order_id?.startsWith("wallet-");
 
-  const isSubscriptionTransaction = ({
-    type,
-    order_id,
-  }: {
-    type?: string;
-    order_id?: string;
-  }) => type === "subscription" || order_id?.startsWith("subscription-");
-
   const extractOrderNumber = (orderId?: string | null): string | null => {
     if (!orderId) return null;
-    const regex = /^order-(\d+)-\d+$/;
+    const regex = /^order-(\d+)(?:-[\w.=]+)+$/;
     const match = orderId.match(regex);
     return match ? match[1] : /^\d+$/.test(orderId) ? orderId : null;
   };
@@ -160,11 +161,31 @@ const PaymentStatus = () => {
   };
 
   const handleGetOrderStatusPhonepe = async (txnId) => {
+    const isWalletTxn = phonePeData?.type === "wallet";
+    const statusParams = isWalletTxn
+      ? { latitude: phonePeData?.latitude, longitude: phonePeData?.longitude }
+      : { order_id: phonePeData?.order_id };
     try {
-      const response = await api.getOrderStatusPhonepe({
-        token: phonePeData.token,
-        transaction_id: phonePeData.merchantOrderId,
-      });
+      // Poll while PENDING; never delete a pending order (backend auto-cancels, late pay → wallet).
+      let response: any = null;
+      while (pollAlive.current) {
+        try {
+          response = await api.getOrderStatusPhonepe({
+            transaction_id: txnId,
+            ...statusParams,
+          });
+          if (response?.status != 1) console.error("[PaymentStatus] PhonePe status", response?.message);
+          if (response?.data?.status !== "PENDING") break;
+        } catch (e) {
+          console.error("[PaymentStatus] PhonePe status", e);
+        }
+        setStatus("pending");
+        await new Promise((r) => setTimeout(r, PHONEPE_POLL_MS));
+      }
+      if (!pollAlive.current) {
+        if (txnId) phonepeTxnResults.delete(txnId);
+        return;
+      }
 
       const remoteStatus = response?.data?.status;
       const remoteOrderId = response?.data?.order_id;
@@ -172,11 +193,11 @@ const PaymentStatus = () => {
       if (remoteStatus == "COMPLETED") {
         resolved = "success";
       } else if (remoteStatus == "FAILED") {
-        // Delete failed order on PhonePe check
-        await handleFailedOrder(remoteOrderId, { redirect: false });
+        // Delete failed order on PhonePe check (never for a wallet top-up)
+        if (!isWalletTxn)
+          await handleFailedOrder(remoteOrderId, { redirect: false });
         resolved = "failed";
       } else {
-        await handleFailedOrder(remoteOrderId, { redirect: false });
         resolved = "pending";
       }
       // Cache status and clear PhonePe checkout details
@@ -186,21 +207,21 @@ const PaymentStatus = () => {
       const orderIdForUrl = extractOrderNumber(remoteOrderId) || remoteOrderId;
       router.replace(
         zoneHref(
-          `/web-payment-status?status=${resolved}&type=order&payment_method=phonepe${
-            orderIdForUrl ? `&order_id=${orderIdForUrl}` : ""
+          `/web-payment-status?status=${resolved}&type=${isWalletTxn ? "wallet" : "order"}&payment_method=phonepe${
+            !isWalletTxn && orderIdForUrl ? `&order_id=${orderIdForUrl}` : ""
           }`,
         ),
       );
     } catch (error) {
-      // Clear pending marker on error
+      console.error("[PaymentStatus]", error);
       if (txnId) phonepeTxnResults.delete(txnId);
-      console.log("error", error);
+      setStatus("pending");
     }
   };
 
   // Start countdown timer when status resolves
   const finishRedirect = () => {
-    if (type == "wallet" || type == "subscription") handleWalletClose();
+    if (type == "wallet") handleWalletClose();
     else if (status === "failed") handleFailedOrder();
     else handlePaymentClose();
   };
@@ -256,7 +277,7 @@ const PaymentStatus = () => {
           ecomRows.find((r) => String(r?.order_id) === String(orderId)) || null;
         if (alive && ecomRow) setOrder({ ...ecomRow, __ecom: true });
       } catch (e) {
-        console.log("order fetch (receipt) failed", e);
+        console.error("[PaymentStatus]", e);
       }
     })();
     return () => {
@@ -269,13 +290,24 @@ const PaymentStatus = () => {
     if (!query || Object.keys(query).length === 0) return;
     if (query?.payment_method == "phonepe") {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- derives type/status from router query, which settles asynchronously
-      setType("order");
+      setType(phonePeData?.type === "wallet" || query?.type === "wallet" ? "wallet" : "order");
       if (query?.status) {
         setStatus(query.status as "success" | "failed" | "pending");
         return;
       }
-      const txnId = phonePeData?.merchantOrderId || query?.transaction_id;
-      if (!txnId) return;
+      const txnId =
+        // merchantOrderId is the PhonePe transaction id
+        query?.merchantOrderId ||
+        phonePeData?.merchantOrderId ||
+        phonePeData?.merchant_order_id ||
+        phonePeData?.transaction_id ||
+        query?.transaction_id;
+      if (!txnId) {
+        // No txn id to check: show pending, not an endless spinner
+        console.warn("[PaymentStatus] PhonePe txn id missing", phonePeData);
+        setStatus("pending");
+        return;
+      }
       const cached = phonepeTxnResults.get(txnId);
       if (cached && cached !== "pending") {
         setStatus(cached.status);
@@ -288,8 +320,7 @@ const PaymentStatus = () => {
     }
     const paymentStatus = checkPaymentStatus(query);
     const isWallet = isWalletTransaction(query);
-    const isSubscription = isSubscriptionTransaction(query);
-    setType(isWallet ? "wallet" : isSubscription ? "subscription" : "order");
+    setType(isWallet ? "wallet" : "order");
     setStatus(paymentStatus);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleGetOrderStatusPhonepe is a plain closure; effect intentionally re-runs only on query/phonePeData
   }, [query, phonePeData]);
@@ -298,7 +329,7 @@ const PaymentStatus = () => {
   const isCod =
     String(order?.payment_method || query?.payment_method || "").toLowerCase() ===
     "cod";
-  const isWalletOrSub = type == "wallet" || type == "subscription";
+  const isWalletOrSub = type == "wallet";
   const goHome = isWalletOrSub ? handleWalletClose : handlePaymentClose;
   // Extract order reference ID
   const orderRef = !isWalletOrSub
@@ -364,19 +395,15 @@ const PaymentStatus = () => {
           title={
             type == "wallet"
               ? t("wallet_add_success") || "Wallet Recharged!"
-              : type == "subscription"
-                ? t("subscription_add_success") || "Subscribed!"
-                : isCod
-                  ? t("order_placed_success") || "Order Placed!"
-                  : t("payment_success") || "Payment Success!"
+              : isCod
+                ? t("order_placed_success") || "Order Placed!"
+                : t("payment_success") || "Payment Success!"
           }
           subtitle={
             type == "wallet"
               ? t("wallet_add_description")
-              : type == "subscription"
-                ? t("subscription_add_description")
-                : t("order_placed_description") ||
-                  "Your Order has been successfully placed."
+              : t("order_placed_description") ||
+                "Your Order has been successfully placed."
           }
           heroAmount={isWalletOrSub ? null : heroAmount}
           heroLabel={

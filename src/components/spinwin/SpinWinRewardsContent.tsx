@@ -1,10 +1,10 @@
 "use client";
 
+import { useAppDispatch } from "@/redux/hooks";
 import React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { useDispatch } from "react-redux";
 import { setPendingPromoCode } from "@/redux/slices/cartSlice";
 import {
   RiFileCopyLine,
@@ -21,8 +21,6 @@ import {
   FiClock,
   FiScissors,
 } from "react-icons/fi";
-import { GoTrophy } from "react-icons/go";
-import { PiSpinnerBallThin } from "react-icons/pi";
 import { t } from "@/utils/translation";
 import useCurrency from "@/hooks/useCurrency";
 import { formatCurrency } from "@/utils/helperFunction";
@@ -94,7 +92,7 @@ const RewardCard = ({
   const { currency, decimals } = useCurrency();
   const router = useRouter();
   const zoneHref = useZoneHref();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const [copied, setCopied] = React.useState(false);
   const [now] = React.useState(() => Date.now());
   const promo = reward.promo_code;
@@ -359,11 +357,9 @@ const SpinWinRewardsContent = ({
   longitude,
   onBeforeNavigate,
 }: SpinWinRewardsContentProps) => {
-  const { currency, decimals } = useCurrency();
   const [activeFilter, setActiveFilter] = React.useState("");
   const {
     rewards,
-    summary,
     isLoading,
     isLoadingMore,
     isError,

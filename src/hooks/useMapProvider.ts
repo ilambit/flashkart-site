@@ -1,4 +1,4 @@
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
 import {
   DEFAULT_MAP_PROVIDER,
   isSupportedProvider,
@@ -14,8 +14,8 @@ export default function useMapProvider(): {
   isLoading: boolean;
   isSupported: boolean;
 } {
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const status = useSelector((state: any) => state.Setting.status);
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const status = useAppSelector((state) => state.Setting.status);
 
   // Settings not fetched yet -> treat as loading so we don't flash fallback.
   const isLoading = !setting && status === "loading";

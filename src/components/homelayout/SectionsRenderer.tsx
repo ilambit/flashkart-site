@@ -21,13 +21,11 @@ const ProductSliderSection = dynamic(
   () => import("./sections/ProductSliderSection"),
   { loading: placeholder("product_slider") },
 );
-const BannerSliderSection = dynamic(
-  () => import("./sections/BannerSliderSection"),
-  {
-    loading: () => (
-      <div className="w-full aspect-[1200/650] animate-pulse bg-black/5" />
-    ),
-  },
+// No `loading` — the fixed 1200/650 box was ~250px taller than the real
+// banner, so every section below it jumped on swap. The Suspense fallback
+// knows the configured aspect ratio.
+const BannerSliderSection = dynamic(() =>
+  import("./sections/BannerSliderSection"),
 );
 const CategorySection = dynamic(() => import("./sections/CategorySection"), {
   loading: placeholder("category_section"),
@@ -39,10 +37,9 @@ const ProductTabsSection = dynamic(
   () => import("./sections/ProductTabsSection"),
   { loading: placeholder("product_slider") },
 );
-const GridBannerSection = dynamic(
-  () => import("./sections/GridBannerSection"),
-  { loading: placeholder("grid_banner") },
-);
+// No `loading` — falls through to the Suspense boundary below, which knows
+// the block's config and can size the placeholder to the real section.
+const GridBannerSection = dynamic(() => import("./sections/GridBannerSection"));
 const TitleImageSection = dynamic(
   () => import("./sections/TitleImageSection"),
   { loading: placeholder("title_image") },
@@ -154,7 +151,8 @@ const SectionsRenderer = ({
         return (
           <div
             key={section?.id}
-            className={`${isFullBleed ? "w-full" : "container"} ${sectionIndex >= initialCount ? "loadMoreIn" : ""}`}
+            // Mobile is edge-to-edge like the app; gutters start at md.
+            className={`${isFullBleed ? "w-full" : "container max-md:px-0"} ${sectionIndex >= initialCount ? "loadMoreIn" : ""}`}
             style={{
               marginTop: section?.margin_top || undefined,
               marginBottom: section?.margin_bottom || undefined,
@@ -165,7 +163,14 @@ const SectionsRenderer = ({
             {(section?.blocks || []).map((block: any, blockIndex: number) => (
               <React.Suspense
                 key={block?.id}
-                fallback={<SectionSkeleton type={block?.type} />}
+                fallback={
+                  <SectionSkeleton
+                    bare
+                    type={block?.type}
+                    config={block?.config}
+                    device={device}
+                  />
+                }
               >
                 {renderBlock(
                   block,

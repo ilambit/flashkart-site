@@ -1,9 +1,9 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@/utils/translation";
 import * as api from "@/api/apiRoutes";
-import { useSelector } from "react-redux";
 import WishlistCard from "../productcards/WishlistCard";
 import CardSkeleton from "../skeleton/CardSkeleton";
 import NoWishListImage from "@/assets/empty-state/empty-whistlist.svg";
@@ -11,11 +11,11 @@ import NotFound from "../notfound/NotFound";
 import useInViewFetch from "@/hooks/useInViewFetch";
 
 const Wishlist = () => {
-  const lat = useSelector((state: any) => state.City.city?.latitude);
-  const lng = useSelector((state: any) => state.City.city?.longitude);
+  const lat = useAppSelector((state) => state.City.city?.latitude);
+  const lng = useAppSelector((state) => state.City.city?.longitude);
   // Wishlist products state
   const [wishlistProducts, setWishlistProducts] = useState<any[]>([]);
-  const [offset, setOffset] = useState(0);
+  const [, setOffset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [total, setTotal] = useState<number | null>(null);
@@ -83,7 +83,6 @@ const Wishlist = () => {
         // Don't let the sentinel retry a failing page in a loop.
         setReachedEnd(true);
         requestedOffsetsRef.current.delete(fetchOffset);
-        console.log("Error", error);
       } finally {
         inFlightRef.current = false;
         setLoading(false);

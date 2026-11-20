@@ -1,8 +1,8 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { useDispatch, useSelector } from "react-redux";
 import BreadCrumb from "../breadcrumb/BreadCrumb";
 import ProfileSidebar from "./ProfileSidebar";
 import AuthGate from "@/components/auth/AuthGate";
@@ -11,9 +11,9 @@ import * as api from "@/api/apiRoutes";
 
 // Persistent layout shell for profile dashboard routes
 const ProfileShellInner = ({ children }: { children: React.ReactNode }) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const pathname = usePathname();
-  const city = useSelector((state: any) => state.City.city);
+  const city = useAppSelector((state) => state.City.city);
   const [selectedTab, setSelectedTab] = useState("profile");
 
   useEffect(() => {
@@ -30,7 +30,6 @@ const ProfileShellInner = ({ children }: { children: React.ReactNode }) => {
       });
       dispatch(setCurrentUser({ data: response.data }));
     } catch (error) {
-      console.log("error", error);
     }
   }, [city, dispatch]);
 

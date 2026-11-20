@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { haptic } from "@/utils/haptics";
 
 /** Optimistic and debounced quantity stepper hook for cart updates. */
 export interface FlushCtx {
@@ -124,6 +125,7 @@ export function useDebouncedQuantity({
       return;
     }
     const next = current + 1;
+    haptic();
     liveRef.current = next;
     targetRef.current = next;
     setOptimistic(next);
@@ -134,6 +136,7 @@ export function useDebouncedQuantity({
     captureBase();
     const current = liveRef.current ?? 0;
     const next = Math.max(0, current - 1);
+    haptic();
     liveRef.current = next;
     targetRef.current = next;
     setOptimistic(next);

@@ -55,7 +55,7 @@ const resolveSsrContext = async (
       return { latitude: dc.latitude, longitude: dc.longitude, favicon };
     }
   } catch (err: any) {
-    console.log("SSR page settings fetch failed:", err?.message);
+    console.error("[page]", err);
   }
   if (clientLocation) {
     return { ...clientLocation, favicon };
@@ -66,7 +66,7 @@ const resolveSsrContext = async (
       return { latitude: fallback.latitude, longitude: fallback.longitude, favicon };
     }
   } catch (err: any) {
-    console.log("SSR page zone fallback failed:", err?.message);
+    console.error("[page]", err);
   }
   return { latitude: null, longitude: null, favicon };
 };

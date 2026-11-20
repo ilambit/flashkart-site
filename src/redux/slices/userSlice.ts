@@ -27,7 +27,7 @@ export const userReducer = createSlice({
             state.status = "fulfill";
             state.user = action.payload.data;
         },
-        setAuthType: (state, action: PayloadAction<{ data: string }>) => {
+        setAuthType: (state, action: PayloadAction<{ data: string | null }>) => {
             state.status = "fulfill";
             state.authType = action.payload.data;
         },

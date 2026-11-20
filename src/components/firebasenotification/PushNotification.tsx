@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppDispatch } from "@/redux/hooks";
 import { useEffect, type ReactNode } from "react";
-import { useDispatch } from "react-redux";
 
 // Dynamically import Firebase to keep it off the initial bundle
 
@@ -10,7 +10,7 @@ interface PushNotificationLayoutProps {
 }
 
 const PushNotificationLayout = ({ children }: PushNotificationLayoutProps) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     // Track unmount state and active listener subscription

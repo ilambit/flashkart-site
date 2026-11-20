@@ -78,7 +78,7 @@ const nextConfig = {
       static: 300,
     },
     // Tree-shake icon/animation libraries to only what's imported.
-    optimizePackageImports: ["react-icons", "lucide-react", "framer-motion"],
+    optimizePackageImports: ["react-icons", "framer-motion"],
   },
 };
 

@@ -1,3 +1,5 @@
+import { haptic } from "@/utils/haptics";
+
 const isOnScreen = (el: Element) => {
   const r = el.getBoundingClientRect();
   return (
@@ -10,17 +12,36 @@ const isOnScreen = (el: Element) => {
   );
 };
 
-// Nearest *visible* img walking up from `source`. Visibility matters: the cards
+// Below this an img is a badge, not the product: the veg/non-veg diet mark
+// renders at 12px inside the same block as the ADD button.
+const MIN_FLY_IMAGE = 48;
+
+const area = (el: Element) => {
+  const r = el.getBoundingClientRect();
+  return r.width * r.height;
+};
+
+// Biggest *visible* img walking up from `source`. Visibility matters: the cards
 // render a md:hidden mobile gallery before the desktop one, so the first img in
-// the card is display:none on desktop and vice versa.
+// the card is display:none on desktop and vice versa. Biggest, not first: the
+// button's own block holds the diet mark while the hero sits further up.
 const nearestImage = (source: HTMLElement) => {
+  let fallback: HTMLImageElement | null = null;
   let card: HTMLElement | null = source;
   while (card) {
-    const visible = Array.from(card.querySelectorAll("img")).find(isOnScreen);
-    if (visible) return visible;
+    const visible = Array.from(card.querySelectorAll("img")).filter(isOnScreen);
+    const big = visible.filter((el) => {
+      const r = el.getBoundingClientRect();
+      return Math.min(r.width, r.height) >= MIN_FLY_IMAGE;
+    });
+    if (big.length) return big.sort((a, b) => area(b) - area(a))[0];
+    if (!fallback && visible.length) {
+      fallback = visible.sort((a, b) => area(b) - area(a))[0];
+    }
     card = card.parentElement;
   }
-  return null;
+  // Nothing product-sized anywhere — fly the best small img rather than nothing.
+  return fallback;
 };
 
 const rect = (left: number, top: number, size = 36) =>
@@ -105,6 +126,8 @@ const waitForTarget = (
 // (e.g. PDP gallery); otherwise the nearest img to `source` is used.
 export const flyToCart = (source: HTMLElement | null, imageSelector?: string) => {
   if (typeof window === "undefined" || !source) return;
+  // The tap landed, whether or not the flight below can run.
+  haptic();
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
   const picked = imageSelector
@@ -125,8 +148,10 @@ export const flyToCart = (source: HTMLElement | null, imageSelector?: string) =>
     const anchors = Array.from(
       document.querySelectorAll<HTMLElement>("[data-cart-target]"),
     ).filter(isOnScreen);
+    // Phone prefers the bottom pill, but routes like the PDP hide it — fall back
+    // to whatever cart anchor is on screen (the header icon) instead of nothing.
     return isPhone
-      ? anchors.find((el) => Number(el.dataset.cartPriority ?? 0) > 0)
+      ? (anchors.find((el) => Number(el.dataset.cartPriority ?? 0) > 0) ?? anchors[0])
       : anchors[0];
   };
 
@@ -137,10 +162,16 @@ export const flyToCart = (source: HTMLElement | null, imageSelector?: string) =>
         ? mobilePillRect()
         : headerCornerRect();
 
+  // Snapshot at click time: a modal that closes right after the add unmounts
+  // its hero before the deferred launch runs, leaving nothing to measure.
+  const fromAtClick = img.getBoundingClientRect();
+
   const launch = (target?: HTMLElement) => {
-    // Measured here, not at click time: the wait below can span a scroll.
-    const from = img.getBoundingClientRect();
-    if (!from.width || !from.height || !isOnScreen(img)) return;
+    // Prefer a live measure — the wait below can span a scroll — and fall back
+    // to the snapshot once the source element is gone.
+    const live = img.isConnected && isOnScreen(img) ? img.getBoundingClientRect() : null;
+    const from = live ?? fromAtClick;
+    if (!from.width || !from.height) return;
     const to = targetRect(target);
 
     // Shrunk copy of the product image, no plate behind it: a full-size copy

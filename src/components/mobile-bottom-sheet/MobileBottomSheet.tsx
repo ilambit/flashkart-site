@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
+import { useState, useEffect } from "react";
 import { t } from "@/utils/translation";
 import { usePathname } from "next/navigation";
 import useStandalone from "@/hooks/useStandalone";
@@ -10,17 +10,17 @@ const MobileBottomSheet = () => {
   const isStandalone = useStandalone();
   const [showAppNotInstalledPopup, setShowAppNotInstalledPopup] =
     useState(false);
-  const settings = useSelector((state: any) => state.Setting.setting);
+  const settings = useAppSelector((state) => state.Setting.setting);
 
   const path = usePathname();
 
   const androidAppLink = settings?.web_settings?.android_app_url;
   const iosAppLink = settings?.web_settings?.ios_app_url;
-  const appName = process.env.NEXT_PUBLIC_WEB_NAME || "Flashkart";
+  const appName = process.env.NEXT_PUBLIC_WEB_NAME || "eCommerce";
 
   // Deep link URI scheme from settings or fallback
   const appScheme =
-    settings?.deeplink_schema || process.env.NEXT_PUBLIC_WEB_NAME || "Flashkart";
+    settings?.deeplink_schema || process.env.NEXT_PUBLIC_WEB_NAME || "eCommerce";
 
   const [isAndroid, setIsAndroid] = useState(false);
   const [isIOS, setIsIOS] = useState(false);

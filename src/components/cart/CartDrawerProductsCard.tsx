@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import {
   addtoGuestCart,
@@ -57,17 +57,17 @@ const CartDrawerProductsCard = ({
   decimals,
   onEditAddons,
 }: CartDrawerProductsCardProps) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { guard: guardClosed, closedProps } = useStoreClosed();
 
   const { currency: liveCurrency, decimals: liveDecimals } = useCurrency();
   const cur = currency ?? liveCurrency;
   const dec = decimals ?? liveDecimals;
   const money = (amount: number | string = 0) => formatCurrency(amount, cur, dec);
-  const cart = useSelector((state: any) => state.Cart);
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const coupon = useSelector((state: any) => state.Cart.promo_code);
-  const city = useSelector((state: any) => state.City.city);
+  const cart = useAppSelector((state) => state.Cart);
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const coupon = useAppSelector((state) => state.Cart.promo_code);
+  const city = useAppSelector((state) => state.City.city);
   const [removing, setRemoving] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -181,7 +181,6 @@ const CartDrawerProductsCard = ({
         setRemoving(false);
       }
     } catch (error) {
-      console.log("error", error);
       setRemoving(false);
     }
   };
@@ -215,7 +214,6 @@ const CartDrawerProductsCard = ({
       toast.error(response.message);
       return false;
     } catch (error) {
-      console.log("error", error);
       return false;
     } finally {
       removingRef.current = false;
@@ -287,7 +285,7 @@ const CartDrawerProductsCard = ({
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartDrawerProductsCard]", error);
     }
   };
 
@@ -335,7 +333,7 @@ const CartDrawerProductsCard = ({
         serverIncrement();
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartDrawerProductsCard]", error);
     }
   };
 
@@ -352,7 +350,7 @@ const CartDrawerProductsCard = ({
         await handleRemoveCoupon();
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartDrawerProductsCard]", error);
     }
   };
 
@@ -387,7 +385,7 @@ const CartDrawerProductsCard = ({
         serverDecrement();
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[CartDrawerProductsCard]", error);
     }
   };
 

@@ -1,7 +1,8 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { RiCloseFill } from "react-icons/ri";
+import { FiMinus, FiPlus } from "react-icons/fi";
 import {
   Dialog as DialogRaw,
   DialogContent as DialogContentRaw,
@@ -11,6 +12,7 @@ import * as api from "@/api/apiRoutes";
 import { t } from "@/utils/translation";
 import useCurrency from "@/hooks/useCurrency";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
+import ProductTypeTag from "../productdetail/ProductTypeTag";
 import AddonGroupsList from "./AddonGroupsList";
 import useHydratedMediaQuery from "@/hooks/useHydratedMediaQuery";
 import { flyToCart } from "@/utils/flyToCart";
@@ -29,7 +31,7 @@ import {
   toAddonPayload,
   validateAddonDraft,
 } from "@/utils/addons";
-import type { AddonDraft, AddonGroup, AddonOption } from "@/types/api/addons";
+import type { AddonDraft, AddonGroup } from "@/types/api/addons";
 
 // dialog.tsx exports are untyped forwardRef components, so TS infers overly
 // narrow prop types. Same cast VariantsModal uses.
@@ -60,9 +62,9 @@ const AddonsModal = ({
   onAdded,
   stacked = false,
 }: AddonsModalProps) => {
-  const dispatch = useDispatch();
-  const cart = useSelector((state: any) => state.Cart);
-  const city = useSelector((state: any) => state.City.city);
+  const dispatch = useAppDispatch();
+  const cart = useAppSelector((state) => state.Cart);
+  const city = useAppSelector((state) => state.City.city);
   const isMobile = useHydratedMediaQuery("(max-width: 767px)") === true;
   const { currency: liveCurrency } = useCurrency();
   const currency = product?.currency || liveCurrency;
@@ -71,6 +73,8 @@ const AddonsModal = ({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [draft, setDraft] = useState<AddonDraft>({});
+  // Mobile sheet has its own stepper; desktop still adds the caller's qty.
+  const [sheetQty, setSheetQty] = useState(qty);
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
   const variants = product?.variants ?? [];
@@ -88,6 +92,7 @@ const AddonsModal = ({
     if (!showAddons) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the selection whenever the sheet opens (or opens for a different product)
     setPickedVariant(null);
+    setSheetQty(qty);
     if (product?.addon_groups?.length) {
       setGroups(product.addon_groups);
       setDraft(defaultAddonDraft(product.addon_groups));
@@ -109,7 +114,7 @@ const AddonsModal = ({
         setGroups(fetched);
         setDraft(defaultAddonDraft(fetched));
       })
-      .catch((error: any) => console.log("addon groups error", error))
+      .catch((error: any) => {})
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -123,7 +128,7 @@ const AddonsModal = ({
       ? activeVariant.discounted_price
       : activeVariant?.price;
   // Display only — the server folds addon money into the line price itself.
-  const lineTotal = ((Number(variantPrice) || 0) + unitAddonTotal) * qty;
+  const lineTotal = ((Number(variantPrice) || 0) + unitAddonTotal) * sheetQty;
 
   const close = () => setShowAddons(false);
 
@@ -143,16 +148,16 @@ const AddonsModal = ({
     const row = {
       product_id: product?.id,
       product_variant_id: activeVariant?.id,
-      qty,
+      qty: sheetQty,
       productPrice: (Number(variantPrice) || 0) + unitAddonTotal,
       // Cart-line shape, so a guest row renders like a server row.
       addons: draftToLineAddons(groups, draft),
-      addon_total: unitAddonTotal * qty,
+      addon_total: unitAddonTotal * sheetQty,
       // Two lines of the same variant differ only by their picks.
       addon_fingerprint: addonFingerprint(addons),
     };
     dispatch(addtoGuestCart({ data: [...(cart?.guestCart ?? []), row] }));
-    dispatch(addGuestCartTotal({ data: row.productPrice * qty }));
+    dispatch(addGuestCartTotal({ data: row.productPrice * sheetQty }));
     toast.success(t("product_added_successfully"));
     launchFlight();
     close();
@@ -193,7 +198,7 @@ const AddonsModal = ({
       const response = await api.addToCart({
         product_id: product?.id,
         product_variant_id: activeVariant?.id,
-        qty,
+        qty: sheetQty,
         latitude: city?.latitude,
         longitude: city?.longitude,
         addons,
@@ -209,37 +214,93 @@ const AddonsModal = ({
         toast.error(response?.message);
       }
     } catch (err) {
-      console.log("addon add to cart error", err);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Mobile follows the app: grey backdrop, each question its own white card.
+  const appStyle = isMobile;
+
   const body = (
-    <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 pt-4 md:px-6">
-      {variants.length > 1 && (
-        <div className="pb-4">
-          <div className="mb-2 text-sm font-semibold text-gray-500">
-            {t("variants")}
+    <div
+      className={`min-h-0 flex-1 overflow-y-auto custom-scrollbar ${
+        appStyle
+          ? "space-y-3 bg-[var(--container-bg)] px-3 py-3"
+          : "px-4 pb-4 pt-4 md:px-6"
+      }`}
+    >
+      {variants.length > 1 &&
+        (appStyle ? (
+          <div className="rounded-2xl bg-white px-3.5 py-3.5 dark:bg-zinc-900">
+            <div className="text-[15px] font-bold capitalize textColor">
+              {t("variants")}
+            </div>
+            <div className="mt-3 border-t border-dashed border-gray-200 dark:border-zinc-800" />
+            {variants.map((row: any) => {
+              const picked = row?.id === activeVariant?.id;
+              const cut =
+                row?.discounted_price && row?.discounted_price !== row?.price;
+              return (
+                <button
+                  key={row?.id}
+                  type="button"
+                  onClick={() => setPickedVariant(row)}
+                  className="flex w-full items-center gap-2.5 py-2.5 text-start"
+                >
+                  <span className="min-w-0 flex-1 truncate text-[13px] capitalize textColor">
+                    {variantLabel(row)}
+                  </span>
+                  {cut && (
+                    <span className="whitespace-nowrap text-[11px] text-gray-400 line-through">
+                      {currency}
+                      {row?.price}
+                    </span>
+                  )}
+                  <span className="whitespace-nowrap text-[13px] font-semibold textColor">
+                    {currency}
+                    {cut ? row?.discounted_price : row?.price}
+                  </span>
+                  <span
+                    role="radio"
+                    aria-checked={picked}
+                    className={`flex aspect-square h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                      picked
+                        ? "primaryColorBorder"
+                        : "border-gray-300 dark:border-zinc-600"
+                    }`}
+                  >
+                    {picked && (
+                      <span className="block h-2 w-2 shrink-0 rounded-full primaryBackColor" />
+                    )}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {variants.map((row: any) => (
-              <button
-                key={row?.id}
-                type="button"
-                onClick={() => setPickedVariant(row)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium capitalize transition ${
-                  row?.id === activeVariant?.id
-                    ? "primaryColorBorder primaryLightBack primaryColor"
-                    : "border-gray-100 dark:border-zinc-800 textColor hover:border-gray-200 dark:hover:border-zinc-700"
-                }`}
-              >
-                {variantLabel(row)}
-              </button>
-            ))}
+        ) : (
+          <div className="pb-4">
+            <div className="mb-2 text-sm font-semibold text-gray-500">
+              {t("variants")}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {variants.map((row: any) => (
+                <button
+                  key={row?.id}
+                  type="button"
+                  onClick={() => setPickedVariant(row)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium capitalize transition ${
+                    row?.id === activeVariant?.id
+                      ? "primaryColorBorder primaryLightBack primaryColor"
+                      : "border-gray-100 dark:border-zinc-800 textColor hover:border-gray-200 dark:hover:border-zinc-700"
+                  }`}
+                >
+                  {variantLabel(row)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ))}
 
       <AddonGroupsList
         groups={groups}
@@ -247,7 +308,46 @@ const AddonsModal = ({
         setDraft={setDraft}
         currency={currency}
         loading={loading}
+        appStyle={appStyle}
       />
+    </div>
+  );
+
+  // App-style bar: stepper beside one wide button carrying the line total.
+  const appFooter = (
+    <div className="flex shrink-0 items-center gap-3 border-t border-gray-100 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex h-11 shrink-0 items-center gap-2.5 rounded-xl border primaryColorBorder primaryLightBack px-2.5">
+        <button
+          type="button"
+          aria-label={t("decrease")}
+          onClick={() => setSheetQty((n) => Math.max(1, n - 1))}
+          disabled={sheetQty <= 1}
+          className="flex h-6 w-6 items-center justify-center primaryColor disabled:opacity-40"
+        >
+          <FiMinus size={14} />
+        </button>
+        <span className="min-w-5 text-center text-sm font-bold primaryColor">
+          {sheetQty}
+        </span>
+        <button
+          type="button"
+          aria-label={t("increase")}
+          onClick={() => setSheetQty((n) => n + 1)}
+          className="flex h-6 w-6 items-center justify-center primaryColor"
+        >
+          <FiPlus size={14} />
+        </button>
+      </div>
+      <button
+        ref={addButtonRef}
+        type="button"
+        onClick={handleAdd}
+        disabled={submitting || loading}
+        className="h-11 flex-1 rounded-xl primaryBackColor text-sm font-bold text-white transition active:scale-95 disabled:opacity-60"
+      >
+        {t("add_to_cart")} {currency}
+        {lineTotal}
+      </button>
     </div>
   );
 
@@ -286,6 +386,10 @@ const AddonsModal = ({
     activeVariant?.discounted_price !== 0 &&
     activeVariant?.discounted_price !== activeVariant?.price;
 
+  // API-sent percent only, same rule the cards follow.
+  const discountPercent =
+    Number(activeVariant?.discount_percent ?? product?.discount_percent) || null;
+
   if (isMobile) {
     return (
       <Sheet open={showAddons} onOpenChange={(open: boolean) => !open && close()}>
@@ -298,30 +402,41 @@ const AddonsModal = ({
           <div className="flex justify-center pt-2.5 pb-1">
             <span className="h-1 w-10 rounded-full bg-gray-300 dark:bg-zinc-700" />
           </div>
-          <SheetTitle className="flex items-center gap-3 px-4 pb-3 pt-2 text-start">
+          <SheetTitle className="flex items-center gap-3 px-4 pb-4 pt-2 text-start">
             <span
               data-addon-fly-image
-              className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-800"
+              className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 dark:border-zinc-800 dark:bg-zinc-800"
             >
               <ImageWithPlaceholder
                 src={heroImage}
                 alt={title}
-                width={96}
-                height={96}
-                className="h-full w-full object-contain"
+                width={160}
+                height={160}
+                className="h-full w-full object-cover"
               />
+              {!!discountPercent && (
+                <span className="absolute inset-x-0 bottom-0 bg-green-600/90 py-0.5 text-center text-[9px] font-bold uppercase leading-none text-white">
+                  {discountPercent}% {t("off")}
+                </span>
+              )}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="line-clamp-1 text-base font-bold capitalize textColor">
-                {title}
+              <span className="flex min-w-0 items-center gap-2">
+                <ProductTypeTag
+                  type={product?.product_type ?? product?.indicator}
+                  iconSize={14}
+                />
+                <span className="line-clamp-2 text-[15px] font-bold capitalize textColor">
+                  {title}
+                </span>
               </span>
               <span className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-sm font-semibold textColor">
+                <span className="text-[13px] font-bold textColor">
                   {currency}
                   {variantPrice}
                 </span>
                 {hasVariantDiscount && (
-                  <span className="text-xs text-gray-400 line-through">
+                  <span className="text-[11px] text-gray-400 line-through">
                     {currency}
                     {activeVariant?.price}
                   </span>
@@ -330,7 +445,7 @@ const AddonsModal = ({
             </span>
           </SheetTitle>
           {body}
-          {footer}
+          {appFooter}
         </SheetContent>
       </Sheet>
     );

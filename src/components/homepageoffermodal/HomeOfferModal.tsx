@@ -1,15 +1,14 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useState, type MouseEvent } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogOverlay,
   DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
 import Link from "next/link";
 import { RiCloseFill } from "react-icons/ri";
-import { useDispatch, useSelector } from "react-redux";
 import { setIsPopupSeen } from "@/redux/slices/settingSlice";
 import { useRouter } from "next/navigation";
 
@@ -25,9 +24,9 @@ import { FILTER_PARAMS } from "@/utils/urlProductFilters";
 
 const HomeOfferModal = () => {
   const zoneHref = useZoneHref();
-  const dispatch = useDispatch();
-  const setting = useSelector((state: any) => state.Setting);
-  const city = useSelector((state: any) => state.City);
+  const dispatch = useAppDispatch();
+  const setting = useAppSelector((state) => state.Setting);
+  const city = useAppSelector((state) => state.City);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
 
@@ -46,8 +45,8 @@ const HomeOfferModal = () => {
     dispatch(setIsPopupSeen({ data: true }));
   };
 
-  const categoryBreadcrumb = useSelector(
-    (state: any) => state.ProductFilter.categoryBreadcrumb,
+  const categoryBreadcrumb = useAppSelector(
+    (state) => state.ProductFilter.categoryBreadcrumb,
   );
 
   const slug = setting?.setting?.popup_slug;

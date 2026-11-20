@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import { setFavoriteProductIds } from "@/redux/slices/FavoriteSlice";
 
@@ -11,10 +11,10 @@ let syncedKey: string | null = null;
 
 // Seeds the persisted favorite-id list from the user's wishlist API.
 export default function useSyncFavoriteIds() {
-  const dispatch = useDispatch();
-  const jwtToken = useSelector((state: any) => state.User.jwtToken);
-  const lat = useSelector((state: any) => state.City.city?.latitude);
-  const lng = useSelector((state: any) => state.City.city?.longitude);
+  const dispatch = useAppDispatch();
+  const jwtToken = useAppSelector((state) => state.User.jwtToken);
+  const lat = useAppSelector((state) => state.City.city?.latitude);
+  const lng = useAppSelector((state) => state.City.city?.longitude);
 
   useEffect(() => {
     if (!jwtToken || lat == null || lng == null) return;
@@ -42,7 +42,6 @@ export default function useSyncFavoriteIds() {
       } catch (error) {
         if (syncedKey === key) syncedKey = null; // allow a retry
         // Keep the current list — a failed sync must not blank every heart.
-        console.log("[favorites] sync failed", error);
       }
     })();
   }, [jwtToken, lat, lng, dispatch]);

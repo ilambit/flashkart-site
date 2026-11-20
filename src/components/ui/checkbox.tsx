@@ -1,6 +1,6 @@
 import * as React from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
-import { Check, Minus } from "lucide-react"
+import { LuCheck, LuMinus } from "react-icons/lu"
 
 import { cn } from "@/lib/utils"
 
@@ -22,9 +22,9 @@ const Checkbox = React.forwardRef<
       )}>
       {/* Radix sets data-state="indeterminate" when checked === "indeterminate". */}
       {checked === "indeterminate" ? (
-        <Minus className="h-4 w-4" />
+        <LuMinus className="h-4 w-4" />
       ) : (
-        <Check className="h-4 w-4" />
+        <LuCheck className="h-4 w-4" />
       )}
     </CheckboxPrimitive.Indicator>
   </CheckboxPrimitive.Root>

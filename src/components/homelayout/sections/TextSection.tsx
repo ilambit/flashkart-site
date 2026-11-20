@@ -1,7 +1,8 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { setBlockSource } from "@/redux/slices/productFilterSlice";
 import React from "react";
-import { useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
 import useZoneHref from "@/hooks/useZoneHref";
 import useUrlProductFilters from "@/hooks/useUrlProductFilters";
@@ -9,6 +10,7 @@ import useDir from "@/hooks/useDir";
 import useNavClick from "@/hooks/useNavClick";
 import useProductsRedirect from "@/hooks/useProductsRedirect";
 import { resolveIdCsvToSlugCsv } from "@/utils/categorySlugResolver";
+import { withListingTitle } from "@/utils/urlProductFilters";
 
 interface TextSectionProps {
   block: any;
@@ -18,12 +20,13 @@ interface TextSectionProps {
 }
 
 const TextSection = ({ block, borderRadius, resolveCategoryTree }: TextSectionProps) => {
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   const dir = useDir();
   const zoneHref = useZoneHref();
   const { buildQueryPatch } = useUrlProductFilters();
   const openProductsRedirect = useProductsRedirect(resolveCategoryTree);
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const config = block?.config || {};
   const { text_align, text_color, background_color, section_title, section_subtitle } = config;
 
@@ -32,6 +35,7 @@ const TextSection = ({ block, borderRadius, resolveCategoryTree }: TextSectionPr
     ((block?.redirect_type === "url" && block?.redirect_url) ||
       (block?.redirect_type === "product" && block?.redirect_slug) ||
       (block?.redirect_type === "category" && block?.redirect_id) ||
+      (block?.redirect_type === "brand" && block?.redirect_id) ||
       (block?.redirect_type === "page" && block?.redirect_slug) ||
       // An all-blank filter set is valid: it opens the unfiltered listing.
       block?.redirect_type === "products");
@@ -44,12 +48,28 @@ const TextSection = ({ block, borderRadius, resolveCategoryTree }: TextSectionPr
     } else if (block?.redirect_type === "product" && block?.redirect_slug) {
       router.push(zoneHref(`/product/${block.redirect_slug}`));
     } else if (block?.redirect_type === "category" && block?.redirect_id) {
+      dispatch(setBlockSource());
       const tree = (await resolveCategoryTree?.()) || [];
       const slug =
         resolveIdCsvToSlugCsv(tree, block.redirect_id.toString()) ||
         block.redirect_id.toString();
       const qs = new URLSearchParams(
-        buildQueryPatch({ category_id: slug }),
+        withListingTitle(
+          buildQueryPatch({ category_id: slug }),
+          block?.redirect_title,
+        ),
+      ).toString();
+      const dest = zoneHref("/products");
+      router.push(qs ? `${dest}?${qs}` : dest);
+    } else if (block?.redirect_type === "brand" && block?.redirect_id) {
+      dispatch(setBlockSource());
+      const qs = new URLSearchParams(
+        withListingTitle(
+          buildQueryPatch({
+            brand_ids: [Number.parseInt(String(block.redirect_id), 10)],
+          }),
+          block?.redirect_title,
+        ),
       ).toString();
       const dest = zoneHref("/products");
       router.push(qs ? `${dest}?${qs}` : dest);

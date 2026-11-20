@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/redux/hooks";
+import { useState, useEffect, useRef } from "react";
 import { t } from "@/utils/translation";
 import ActiveOrdersCard from "./ActiveOrdersCard";
 import * as api from "@/api/apiRoutes";
@@ -16,8 +16,8 @@ import useInViewFetch from "@/hooks/useInViewFetch";
 
 const ActiveOrders = () => {
   // Map shopMode ("allShop" -> "ecommerce") to active channel tab
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
-  const availableModes = useSelector((state: any) => state.ShopMode.availableModes);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
+  const availableModes = useAppSelector((state) => state.ShopMode.availableModes);
   const [activeChannel, setActiveChannel] = useState<string>(
     shopMode === "allShop" ? "ecommerce" : "quick",
   );
@@ -30,7 +30,7 @@ const ActiveOrders = () => {
   const [loading, setLoading] = useState(false);
   const [activeOrders, setActiveOrders] = useState<any[]>([]);
   const [offset, setOffset] = useState(0);
-  const [totalOrders, setTotalOrders] = useState<number | null>(null);
+  const [, setTotalOrders] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [dateFilter, setDateFilter] = useState<OrderDateFilterValue | null>(null);
@@ -80,7 +80,6 @@ const ActiveOrders = () => {
         setLoadingMore(false);
       }
     } catch (error: any) {
-      console.log("Error", error);
       setLoading(false);
       setLoadingMore(false);
     }

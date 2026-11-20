@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import * as api from "@/api/apiRoutes";
 import {
   addtoGuestCart,
@@ -108,10 +108,10 @@ const CartProductCard = ({
   currency,
   decimals,
 }: CartProductCardProps) => {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { guard: guardClosed, closedProps } = useStoreClosed();
-  const cart = useSelector((state: any) => state.Cart);
-  const setting = useSelector((state: any) => state.Setting.setting);
+  const cart = useAppSelector((state) => state.Cart);
+  const setting = useAppSelector((state) => state.Setting.setting);
 
   const { currency: liveCurrency, decimals: liveDecimals } = useCurrency();
   const cur = currency || liveCurrency;
@@ -119,9 +119,9 @@ const CartProductCard = ({
   const money = (amount: number | string = 0) =>
     formatCurrency(amount, cur, dec);
 
-  const coupon = useSelector((state: any) => state.Cart.promo_code);
-  const city = useSelector((state: any) => state.City.city);
-  const user = useSelector((state: any) => state.User);
+  const coupon = useAppSelector((state) => state.Cart.promo_code);
+  const city = useAppSelector((state) => state.City.city);
+  const user = useAppSelector((state) => state.User);
   const [totalPrice, setTotalPrice] = useState<number | undefined>();
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -231,7 +231,7 @@ const CartProductCard = ({
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[CartProductCard]", error);
     }
   };
 
@@ -311,7 +311,6 @@ const CartProductCard = ({
         toast.error(response?.message);
       }
     } catch (error) {
-      console.log("Error", error);
       toast.error(t("something_went_wrong"));
     } finally {
       setMovingToWishlist(false);
@@ -338,7 +337,7 @@ const CartProductCard = ({
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartProductCard]", error);
     }
   };
 
@@ -391,7 +390,7 @@ const CartProductCard = ({
         serverIncrement();
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartProductCard]", error);
     }
   };
 
@@ -411,7 +410,7 @@ const CartProductCard = ({
         await handleRemoveCoupon();
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[CartProductCard]", error);
     }
   };
 
@@ -441,7 +440,7 @@ const CartProductCard = ({
         serverDecrement();
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[CartProductCard]", error);
     }
   };
 

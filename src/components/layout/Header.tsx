@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DropdownMenu,
@@ -27,11 +28,11 @@ import { MdDirectionsWalk } from "react-icons/md";
 import { BiCategoryAlt, BiSolidCategoryAlt } from "react-icons/bi";
 
 import dynamic from "next/dynamic";
+import { OPEN_LOGIN_EVENT } from "@/utils/loginEvents";
 // Dynamic imports for overlays and Lottie
 const CartDrawer = dynamic(() => import("../cart/CartDrawer"), { ssr: false });
 const Login = dynamic(() => import("../login/Login"), { ssr: false });
 import { t } from "@/utils/translation";
-import { useDispatch, useSelector } from "react-redux";
 import { setShowLocation as setShowLocationAction } from "@/redux/slices/locationModalSlice";
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 const Location = dynamic(() => import("../locationmodal/Location"), {
@@ -224,7 +225,7 @@ const Header = () => {
   const router = useRouter();
   const { run: runNavClick } = useNavClick();
   const pathname = usePathname();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const routeParams = useParams<{ zone?: string }>();
 
   const zoneSlugFromUrl = routeParams?.zone ?? null;
@@ -241,15 +242,15 @@ const Header = () => {
   // Hydration state check
   const isHydrated = useIsHydrated();
 
-  const cart = useSelector((state: any) => state.Cart);
-  const setting = useSelector((state: any) => state.Setting);
-  const defaultCityLat = useSelector(
-    (state: any) => state.Setting?.setting?.default_city?.latitude,
+  const cart = useAppSelector((state) => state.Cart);
+  const setting = useAppSelector((state) => state.Setting);
+  const defaultCityLat = useAppSelector(
+    (state) => state.Setting?.setting?.default_city?.latitude,
   );
-  const defaultCityLng = useSelector(
-    (state: any) => state.Setting?.setting?.default_city?.longitude,
+  const defaultCityLng = useAppSelector(
+    (state) => state.Setting?.setting?.default_city?.longitude,
   );
-  const user = useSelector((state: any) => state.User);
+  const user = useAppSelector((state) => state.User);
   const { currency: cartCurrency } = useCurrency();
   const sumQty = (list: any[]) =>
     Array.isArray(list)
@@ -266,33 +267,26 @@ const Header = () => {
         : cart?.cartSubTotal || cart?.cart?.data?.sub_total,
     ) || 0;
   // Selected city coordinates and details
-  const cityLat = useSelector((state: any) => state.City.city?.latitude);
-  const cityLng = useSelector((state: any) => state.City.city?.longitude);
-  const cityStatus = useSelector((state: any) => state.City.status);
-  const cityAddress = useSelector(
-    (state: any) => state.City.city?.formatted_address,
+  const cityLat = useAppSelector((state) => state.City.city?.latitude);
+  const cityLng = useAppSelector((state) => state.City.city?.longitude);
+  const cityStatus = useAppSelector((state) => state.City.status);
+  const cityAddress = useAppSelector(
+    (state) => state.City.city?.formatted_address,
   );
-  const cityDistance = useSelector((state: any) => state.City.city?.distance);
-  const hasCity = useSelector((state: any) => state.City.city != null);
-  const citySlug = useSelector((state: any) => state.City.city?.slug ?? null);
-  const selectedZoneName = useSelector(
-    (state: any) => state?.LocationModal?.selectedZone?.name,
+  const cityDistance = useAppSelector((state) => state.City.city?.distance);
+  const hasCity = useAppSelector((state) => state.City.city != null);
+  const citySlug = useAppSelector((state) => state.City.city?.slug ?? null);
+  const selectedZoneName = useAppSelector(
+    (state) => state?.LocationModal?.selectedZone?.name,
   );
-  const selectedZoneSlug = useSelector(
-    (state: any) => state?.LocationModal?.selectedZone?.slug,
+  const selectedZoneSlug = useAppSelector(
+    (state) => state?.LocationModal?.selectedZone?.slug,
   );
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") {
-      console.log("[ZONE TRACE] zone/location changed", {
-        selectedZoneName,
-        selectedZoneSlug,
-        cityAddress,
-        citySlug,
-        paramsZone: zoneSlugFromUrl,
-      });
     }
   }, [selectedZoneName, selectedZoneSlug, cityAddress, citySlug, zoneSlugFromUrl]);
-  const filter = useSelector((state: any) => state.ProductFilter);
+  const filter = useAppSelector((state) => state.ProductFilter);
   const { setSearch: setUrlSearch } = useUrlProductFilters();
   const {
     searchText,
@@ -303,12 +297,12 @@ const Header = () => {
     handleSearch,
     handleSearchRetry,
   } = useSearchSuggestions();
-  const language = useSelector((state: any) => state.Language);
-  const fcmToken = useSelector((state: any) => state.User?.fcm_token);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
-  const deliveryTime = useSelector((state: any) => state.ShopMode.deliveryTime);
-  const deliveryDistance = useSelector(
-    (state: any) => state.ShopMode.deliveryDistance,
+  const language = useAppSelector((state) => state.Language);
+  const fcmToken = useAppSelector((state) => state.User?.fcm_token);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
+  const deliveryTime = useAppSelector((state) => state.ShopMode.deliveryTime);
+  const deliveryDistance = useAppSelector(
+    (state) => state.ShopMode.deliveryDistance,
   );
 
   // Fetch cart for selected shop mode
@@ -345,7 +339,6 @@ const Header = () => {
       }
     } catch (error) {
       if (cartFetchKeyRef.current === fetchKey) cartFetchKeyRef.current = null;
-      console.log("fetchCartForMode error", error);
     }
   };
 
@@ -379,7 +372,7 @@ const Header = () => {
         dispatch(setCartCurrency({ data: response.data.currency, channel }));
       }
     } catch (error) {
-      console.log("guest cart currency error", error);
+      console.error("[Header]", error);
     }
   };
 
@@ -406,7 +399,6 @@ const Header = () => {
             (k) => (now as any)[k] !== (prev as any)[k],
           )
         : ["<first run>"];
-      console.log("[CART TRACE] effect fired, changed deps:", changed, now);
       cartDepTraceRef.current = now;
     }
     if (!shopMode) return;
@@ -426,14 +418,14 @@ const Header = () => {
     cityLng,
   ]);
 
-  const layoutMode = useSelector((state: any) => state.ShopMode.layoutMode);
-  const requestedMode = useSelector((state: any) => state.ShopMode.requested);
-  const defaultApplied = useSelector((state: any) => state.ShopMode.defaultApplied);
-  const layoutTheme = useSelector((state: any) => state.ShopMode.layoutTheme);
-  const quickLabel = useSelector((state: any) => state.ShopMode.quickLabel) || "";
+  const layoutMode = useAppSelector((state) => state.ShopMode.layoutMode);
+  const requestedMode = useAppSelector((state) => state.ShopMode.requested);
+  const defaultApplied = useAppSelector((state) => state.ShopMode.defaultApplied);
+  const layoutTheme = useAppSelector((state) => state.ShopMode.layoutTheme);
+  const quickLabel = useAppSelector((state) => state.ShopMode.quickLabel) || "";
   const ecommerceLabel =
-    useSelector((state: any) => state.ShopMode.ecommerceLabel) || "";
-  const availableModes = useSelector((state: any) => state.ShopMode.availableModes);
+    useAppSelector((state) => state.ShopMode.ecommerceLabel) || "";
+  const availableModes = useAppSelector((state) => state.ShopMode.availableModes);
   const showShopModeToggle = isHydrated && availableModes === "both";
 
   const device = useDeviceBreakpoint();
@@ -570,14 +562,19 @@ const Header = () => {
 
   const [showCart, setShowCart] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  useEffect(() => {
+    const open = () => setShowLogin(true);
+    window.addEventListener(OPEN_LOGIN_EVENT, open);
+    return () => window.removeEventListener(OPEN_LOGIN_EVENT, open);
+  }, []);
   const [showLogout, setShowLogout] = useState(false);
   const [mobileActiveKey, setMobileActiveKey] = useState(1);
   const [selectedTab, setSelectedTab] = useState("profile");
   const [showProfile, setShowProfile] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const showLocation = useSelector(
-    (state: any) => state?.LocationModal?.showLocation,
+  const showLocation = useAppSelector(
+    (state) => state?.LocationModal?.showLocation,
   );
   const setShowLocation = useCallback(
     (value: boolean) => dispatch(setShowLocationAction(!!value)),
@@ -677,7 +674,7 @@ const Header = () => {
         setShowLocation(true);
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[Header]", error);
     } finally {
       fetchingCityRef.current = false;
     }
@@ -727,12 +724,12 @@ const Header = () => {
               fcmToken,
             });
           } catch (fcmErr: any) {
-            console.log("FCM token update failed:", fcmErr?.message);
+            console.error("[Header]", fcmErr);
           }
         }
       }
     } catch (error) {
-      console.log("error", error);
+      console.error("[Header]", error);
     }
   };
 
@@ -742,6 +739,14 @@ const Header = () => {
     } else {
       setShowCart(true);
     }
+  };
+
+  // Mobile goes straight to checkout like the app; guests still need the cart
+  // page, since checkout is behind AuthGate.
+  const handleMobileCartOpen = () => {
+    runNavClick(() =>
+      router.push(zoneHref(user?.jwtToken ? "/checkout" : "/cart")),
+    );
   };
 
   const handleLoginOpen = () => {
@@ -843,7 +848,7 @@ const Header = () => {
 
   // Mobile home header height collapse on scroll
   const collapseHomeTop = isHomeRoute && isMobile === true;
-  const { mobileTopRef, mobileTopH, showBackToTop } =
+  const { mobileTopRef, mobileTopH } =
     useMobileHeaderCollapse(collapseHomeTop);
 
   // View Cart pill: rendered by layout/MobileViewCartPill (all pages).
@@ -892,9 +897,9 @@ const Header = () => {
                   aria-label="Home" // static label so the link is named pre-mount too; not t() to avoid an SSR/locale mismatch
                   className="relative flex-shrink-0 h-[38px] w-[115px] lg:w-[140px]"
                 >
-                  {mounted && setting?.setting?.web_settings?.web_logo && (
+                  {mounted && (
                     <Image
-                      src={setting?.setting?.web_settings?.web_logo}
+                      src={setting?.setting?.web_settings?.web_logo || "/logo.png"}
                       alt="Logo"
                       fill
                       priority={true}
@@ -1162,9 +1167,9 @@ const Header = () => {
                     aria-label="Home"
                     className="relative h-[30px] w-[100px] flex-shrink-0"
                   >
-                    {mounted && setting?.setting?.web_settings?.web_logo && (
+                    {mounted && (
                       <Image
-                        src={setting?.setting?.web_settings?.web_logo}
+                        src={setting?.setting?.web_settings?.web_logo || "/logo.png"}
                         alt="Logo"
                         fill
                         sizes="100px"
@@ -1191,7 +1196,7 @@ const Header = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={handleCartOpen}
+                      onClick={handleMobileCartOpen}
                       className="p-2 rounded-full relative active:bg-black/10"
                       aria-label="Cart"
                     >
@@ -1377,7 +1382,9 @@ const Header = () => {
       {/* Mobile Bottom Navigation */}
       <nav
         className={`fixed bottom-0 left-0 w-full z-50 md:hidden ${
-          /\/(products|search)\/?$/.test(pathname || "") ? "!hidden" : ""
+          /\/(products|search|checkout)\/?$/.test(pathname || "")
+            ? "!hidden"
+            : ""
         }`}
       >
         <div className="bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700/60 shadow-[0_-2px_12px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom)]">

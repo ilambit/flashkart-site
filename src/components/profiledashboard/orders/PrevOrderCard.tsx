@@ -7,7 +7,6 @@ import OrderCancelModal from "./OrderCancelModal";
 import { useState } from "react";
 import {
   LuPackage,
-  LuCalendarClock,
   LuChevronDown,
   LuEye,
   LuRotateCcw,
@@ -21,6 +20,7 @@ import { toast } from "react-toastify";
 import useZoneHref from "@/hooks/useZoneHref";
 import useCurrency from "@/hooks/useCurrency";
 import ProductTypeTag from "../../productdetail/ProductTypeTag";
+import MobileOrderCard from "./MobileOrderCard";
 
 const STATUS_MAP: Record<number, { label: string; cls: string }> = {
   1: { label: "paymentPending", cls: "paymentPendingStatus" },
@@ -46,12 +46,12 @@ interface PrevOrderCardProps {
   onCancelled?: () => void;
   channel: string;
   shopMode: string;
-  availableModes: string;
+  availableModes: string | null;
 }
 
 const PrevOrderCard = ({ order, onCancelled, channel, shopMode, availableModes }: PrevOrderCardProps) => {
   const zoneHref = useZoneHref();
-  const { currency } = useCurrency(order);
+  const { currency, decimals } = useCurrency(order);
   const [showReoderModal, setShowReorderModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [open, setOpen] = useState(false);
@@ -97,7 +97,7 @@ const PrevOrderCard = ({ order, onCancelled, channel, shopMode, availableModes }
   const walletPaid = Number(order?.paid_wallet ?? order?.wallet_balance ?? 0);
   const walletUsed = walletPaid > 0;
   const displayTotal = walletUsed
-    ? walletPaid + Number(order?.final_total || 0)
+    ? Number((walletPaid + Number(order?.final_total || 0)).toFixed(decimals || 2))
     : order?.final_total;
   // Format payment method label for split wallet payments
   const gatewayResidual = Number(order?.final_total || 0);
@@ -118,7 +118,17 @@ const PrevOrderCard = ({ order, onCancelled, channel, shopMode, availableModes }
 
   return (
     <div className="px-2 pb-3">
-      <div className="flex w-full flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white shadow-sm dark:bg-zinc-900">
+      <MobileOrderCard
+        order={order}
+        currency={currency}
+        statusLabel={order?.order_status_name || t(status.label)}
+        statusCls={status.cls}
+        displayTotal={displayTotal}
+        showReorder={showReorder}
+        onReorder={() => setShowReorderModal(true)}
+        onCancel={canCancel ? () => setShowCancelModal(true) : undefined}
+      />
+      <div className="hidden md:flex w-full flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-white shadow-sm dark:bg-zinc-900">
         {/* Top: status + date */}
         <div className="flex items-center justify-between gap-2 px-4 pt-4">
           <div className="flex flex-wrap items-center gap-1.5 min-w-0">

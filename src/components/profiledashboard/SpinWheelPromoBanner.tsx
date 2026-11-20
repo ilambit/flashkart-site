@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useId, useRef } from "react";
+import { useId, useRef } from "react";
 import { t } from "@/utils/translation";
 import {
   openSpinWheel,

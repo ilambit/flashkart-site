@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GoogleMap,
@@ -10,7 +11,6 @@ import {
   Polyline,
   useJsApiLoader,
 } from "@react-google-maps/api";
-import { useSelector } from "react-redux";
 import { MAP_CONFIG } from "../../utils/mapConfig";
 import { darkThemeStyles } from "../../utils/mapColor";
 import MapLoader from "./MapLoader";
@@ -39,11 +39,13 @@ export default function GoogleMapComponent({
   polygonOptions,
   fitToMarkers = false,
 }: MapComponentProps) {
-  const theme = useSelector((state: any) => state.Theme.theme);
+  const theme = useAppSelector((state) => state.Theme.theme);
   const mapRef = useRef<google.maps.Map | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   // Once the user pans/zooms, stop re-fitting the viewport on data updates.
   const userMovedRef = useRef(false);
-  const programmaticRef = useRef(false);
+  // Starts true: the map's own init fires zoom_changed before any user input.
+  const programmaticRef = useRef(true);
   const [userMoved, setUserMoved] = useState(false);
 
   // MAP_CONFIG (src/utils/mapConfig.ts, outside this migration batch) types
@@ -203,6 +205,26 @@ export default function GoogleMapComponent({
     }
   }, [fitBounds, fitToMarkers, resolvedMarkers, polylinePath, polygonPath]);
 
+  // A map built inside a just-opened modal can measure 0px and never request
+  // tiles; re-trigger resize once the container actually has a size.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let wasEmpty = el.clientWidth === 0 || el.clientHeight === 0;
+    const observer = new ResizeObserver(() => {
+      const empty = el.clientWidth === 0 || el.clientHeight === 0;
+      const map = mapRef.current;
+      if (!empty && wasEmpty && map && window.google?.maps) {
+        const keep = map.getCenter();
+        window.google.maps.event.trigger(map, "resize");
+        if (keep) map.setCenter(keep);
+      }
+      wasEmpty = empty;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isLoaded]);
+
   const markUserMoved = useCallback(() => {
     userMovedRef.current = true;
     setUserMoved(true);
@@ -225,6 +247,21 @@ export default function GoogleMapComponent({
     userMovedRef.current = false;
     setUserMoved(false);
   }, []);
+
+  // After the user pans/zooms, keep feeding the last applied viewport instead of
+  // `undefined` — the library forwards undefined straight to setCenter/setZoom,
+  // which wipes the viewport and leaves a grey, tile-less map.
+  const [lastView, setLastView] = useState({ center, zoom });
+  if (
+    !userMoved &&
+    (lastView.center.lat !== center.lat ||
+      lastView.center.lng !== center.lng ||
+      lastView.zoom !== zoom)
+  ) {
+    setLastView({ center, zoom });
+  }
+  const appliedCenter = userMoved ? lastView.center : center;
+  const appliedZoom = userMoved ? lastView.zoom : zoom;
 
   const handleMapClick = useCallback(
     (e: google.maps.MapMouseEvent) => {
@@ -253,11 +290,11 @@ export default function GoogleMapComponent({
   }
 
   return (
-    <div className={className} style={{ width: "100%" }}>
+    <div ref={containerRef} className={className} style={{ width: "100%" }}>
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={userMoved ? undefined : center}
-        zoom={userMoved ? undefined : zoom}
+        center={appliedCenter}
+        zoom={appliedZoom}
         options={options}
         onLoad={handleLoad}
         onUnmount={handleUnmount}

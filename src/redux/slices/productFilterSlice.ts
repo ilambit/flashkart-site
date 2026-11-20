@@ -18,6 +18,12 @@ export interface ProductFilterState {
   block_category_ids: string;
   block_brand_ids: string;
   filter_mode: string;
+  // "Product list with filters" baseline a slider's "View more" starts from.
+  block_attribute_value_ids: string;
+  block_min_price: string;
+  block_max_price: string;
+  block_min_discount_percent: string;
+  block_max_discount_percent: string;
 }
 
 export const initialState: ProductFilterState = {
@@ -39,6 +45,11 @@ export const initialState: ProductFilterState = {
   block_category_ids: "",
   block_brand_ids: "",
   filter_mode: "",
+  block_attribute_value_ids: "",
+  block_min_price: "",
+  block_max_price: "",
+  block_min_discount_percent: "",
+  block_max_discount_percent: "",
 };
 
 export const productFilterReducer = createSlice({
@@ -77,6 +88,11 @@ export const productFilterReducer = createSlice({
         state.block_category_ids = "";
         state.block_brand_ids = "";
         state.filter_mode = "";
+        state.block_attribute_value_ids = "";
+        state.block_min_price = "";
+        state.block_max_price = "";
+        state.block_min_discount_percent = "";
+        state.block_max_discount_percent = "";
       }
     },
     setSelectedCategories: (state, action: PayloadAction<{ data: any }>) => {
@@ -108,6 +124,11 @@ export const productFilterReducer = createSlice({
             category_ids?: string;
             brand_ids?: string;
             filter_mode?: string;
+            attribute_value_ids?: string;
+            min_price?: string;
+            max_price?: string;
+            min_discount_percent?: string;
+            max_discount_percent?: string;
           }
         | undefined
       >
@@ -119,6 +140,11 @@ export const productFilterReducer = createSlice({
         category_ids = "",
         brand_ids = "",
         filter_mode = "",
+        attribute_value_ids = "",
+        min_price = "",
+        max_price = "",
+        min_discount_percent = "",
+        max_discount_percent = "",
       } = action.payload || {};
       state.data_source = data_source;
       state.manual_product_ids =
@@ -127,6 +153,11 @@ export const productFilterReducer = createSlice({
       state.block_category_ids = data_source === "manual" ? "" : category_ids;
       state.block_brand_ids = data_source === "manual" ? "" : brand_ids;
       state.filter_mode = filter_mode;
+      state.block_attribute_value_ids = attribute_value_ids;
+      state.block_min_price = min_price;
+      state.block_max_price = max_price;
+      state.block_min_discount_percent = min_discount_percent;
+      state.block_max_discount_percent = max_discount_percent;
     },
   },
 });

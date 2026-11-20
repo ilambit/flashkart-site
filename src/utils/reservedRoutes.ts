@@ -20,7 +20,6 @@ export const RESERVED_ROUTES = new Set([
   "profile",
   "return-and-exchange-policy",
   "search",
-  "sellers",
   "shipping-policy",
   "terms-and-conditions",
   "web-payment-status",

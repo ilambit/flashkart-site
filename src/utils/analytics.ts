@@ -57,23 +57,8 @@ export const trackRemoveFromCart = (item: GaItem, currency?: string): void =>
     items: [item],
   });
 
-export const trackViewCart = (items: GaItem[], currency?: string): void =>
-  event("view_cart", { currency, value: itemsValue(items), items });
-
 export const trackBeginCheckout = (items: GaItem[], currency?: string): void =>
   event("begin_checkout", { currency, value: itemsValue(items), items });
-
-export const trackAddPaymentInfo = (
-  items: GaItem[],
-  paymentType?: string,
-  currency?: string,
-): void =>
-  event("add_payment_info", {
-    currency,
-    value: itemsValue(items),
-    payment_type: paymentType,
-    items,
-  });
 
 export interface PurchaseParams {
   transactionId: string | number;

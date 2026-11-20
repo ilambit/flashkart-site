@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Suspense, useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
 import {
   setSelectedLanguage,
   setLanguageCodes,
@@ -31,7 +31,7 @@ export default function AppContent({
   langCodes?: string[];
 }) {
   const pathname = usePathname();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { parseLangPath, defaultCode } = useLanguages();
   // Navigation in flight (searchParams-only updates don't trigger it).
   const { isPending: loading } = useAppNavigate();
@@ -55,11 +55,11 @@ export default function AppContent({
       dispatch(setLanguageCodes(langCodes));
     }
   }, [langCodes, dispatch]);
-  const selectedLanguage = useSelector(
-    (state: any) => state.Language.selectedLanguage,
+  const selectedLanguage = useAppSelector(
+    (state) => state.Language.selectedLanguage,
   );
-  const availableLanguages = useSelector(
-    (state: any) => state.Language.availableLanguages,
+  const availableLanguages = useAppSelector(
+    (state) => state.Language.availableLanguages,
   );
 
   // URL → Redux: URL language is source of truth. Redux → URL lives in the
@@ -88,7 +88,7 @@ export default function AppContent({
             document.documentElement.dir = res.data.type.toLowerCase();
           }
         })
-        .catch((err: any) => console.log("URL language adopt failed:", err?.message));
+        .catch((err: any) => {});
     }, 0);
     return () => {
       active = false;
@@ -103,7 +103,7 @@ export default function AppContent({
     defaultCode,
   ]);
 
-  const setting = useSelector((state: any) => state.Setting?.setting);
+  const setting = useAppSelector((state) => state.Setting?.setting);
 
   // Clarity keys vary by backend build: `_web` first, then `_customer`, then
   // bare — top-level or under web_settings.

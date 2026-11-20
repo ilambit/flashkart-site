@@ -48,7 +48,7 @@ const ReturnReasonModal = ({
           setAddresses([]);
         }
       } catch (error) {
-        console.log("Error", error);
+        console.error("[ReturnReasonModal]", error);
       } finally {
         if (active) setAddressLoading(false);
       }
@@ -93,7 +93,6 @@ const ReturnReasonModal = ({
       }
     } catch (error: any) {
       // Surface the backend error so a 500 doesn't fail silently.
-      console.log("Return error", error?.response?.status, error?.response?.data);
       toast.error(
         error?.response?.data?.message || t("something_went_wrong")
       );

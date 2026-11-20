@@ -409,15 +409,6 @@
     color: var(--primary-color);
   }
 
-  .sellerHover {
-    background-color: var(--primary-color);
-    color: #fff;
-  }
-
-  .sellerTransation {
-    transition: color 0.5s ease-in-out, box-shadow 0.5s ease-in-out;
-  }
-
   .countryHover {
     border: 1px solid var(--border-color);
     color: var(--primary-color) !important;

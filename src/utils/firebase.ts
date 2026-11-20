@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import {
   deleteToken,
   getMessaging,
@@ -21,35 +21,22 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
-const isFirebaseConfigured = Boolean(
-  firebaseConfig.apiKey &&
-  !firebaseConfig.apiKey.includes("xxxx") &&
-  firebaseConfig.projectId &&
-  !firebaseConfig.projectId.includes("xxxx")
-);
-
-const app = isFirebaseConfigured
-  ? (!getApps().length ? initializeApp(firebaseConfig) : getApp())
-  : null;
-const auth: Auth = (app ? getAuth(app) : null) as unknown as Auth;
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth = getAuth(app);
 let messaging: Messaging | null = null;
 
 const getMessagingInstance = async (): Promise<Messaging | null> => {
   if (messaging) return messaging;
-  if (typeof window === "undefined" || !app) return null;
+  if (typeof window === "undefined") return null;
 
   try {
     const isSupportedBrowser = await isSupported();
     if (isSupportedBrowser) {
       messaging = getMessaging(app);
       return messaging;
-    } else {
-      if (typeof window !== "undefined" && sessionStorage.getItem("hide-unsupported-browser-note") !== "true") {
-        console.log("Firebase Messaging is not supported in this browser.");
-        createStickyNote();
-      }
-      return null;
     }
+    createStickyNote();
+    return null;
   } catch (err) {
     console.error("Error checking messaging support:", err);
     return null;
@@ -57,15 +44,10 @@ const getMessagingInstance = async (): Promise<Messaging | null> => {
 };
 
 export const registerServiceWorker = (): void => {
-  if (!isFirebaseConfigured) return;
   if (typeof window !== "undefined" && "serviceWorker" in navigator) {
     navigator.serviceWorker
       .register("/firebase-messaging-sw.js")
       .then((registration) => {
-        console.log(
-          "Service Worker registration successful, scope is:",
-          registration.scope
-        );
       })
       .catch((err) => {
         console.error("Service Worker registration failed:", err);
@@ -87,7 +69,6 @@ export const fetchToken = async (
 
     const messagingInstance = await getMessagingInstance();
     if (!messagingInstance) {
-      console.log("Messaging not initialized, can't fetch token.");
       return null;
     }
 
@@ -96,7 +77,6 @@ export const fetchToken = async (
       if (!prompt || Notification.permission === "denied") return null;
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        console.log("Unable to get permission to notify.");
         return null;
       }
     }
@@ -109,9 +89,6 @@ export const fetchToken = async (
       dispatch(setFcmToken({ data: currentToken }));
       return currentToken;
     }
-    console.log(
-      "No registration token available. Request permission to generate one."
-    );
     return null;
   } catch (err) {
     console.error("An error occurred while retrieving token.", err);
@@ -128,7 +105,6 @@ export const onMessageListener = (
   getMessagingInstance().then((messagingInstance) => {
     if (messagingInstance) {
       unsubscribe = onMessage(messagingInstance, (payload) => {
-        console.log("Foreground message received. ", payload);
         callback?.(payload);
       });
     }

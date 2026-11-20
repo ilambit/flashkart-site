@@ -54,7 +54,6 @@ export async function fetchSeoRow(
       favicon: pick("favicon") || defaults.favicon,
     };
   } catch (error) {
-    console.log("error", error);
     return defaults;
   }
 }

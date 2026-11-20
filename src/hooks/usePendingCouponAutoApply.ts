@@ -1,7 +1,7 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import * as api from "@/api/apiRoutes";
 import { t } from "@/utils/translation";
@@ -23,10 +23,10 @@ interface Options {
 
 // Auto-applies pending promo code once cart has items.
 const usePendingCouponAutoApply = ({ active, hasItems, subTotal }: Options) => {
-  const dispatch = useDispatch();
-  const pending = useSelector((s: any) => s.Cart?.pendingPromoCode as string | null);
-  const applied = useSelector((s: any) => s.Cart?.promo_code);
-  const city = useSelector((s: any) => s.City?.city);
+  const dispatch = useAppDispatch();
+  const pending = useAppSelector((s) => s.Cart?.pendingPromoCode as string | null);
+  const applied = useAppSelector((s) => s.Cart?.promo_code);
+  const city = useAppSelector((s) => s.City?.city);
 
   useEffect(() => {
     if (!active || !pending || !hasItems || !(subTotal > 0) || inFlight) return;

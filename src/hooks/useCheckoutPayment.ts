@@ -1,23 +1,19 @@
 "use client";
-import { useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { persistor } from "@/redux/store";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import * as api from "@/api/apiRoutes";
 import useZoneHref from "@/hooks/useZoneHref";
+import usePaymentResult from "@/hooks/usePaymentResult";
 import { clearCartPromo } from "@/redux/slices/cartSlice";
 import { setPhonePeCheckoutDetails } from "@/redux/slices/checkoutSlice";
 import { submitPaymentForm, redirectToGateway } from "@/utils/submitPaymentForm";
 import { launchPayuSdk } from "@/utils/payuSdk";
+import { getPaystackEmail, loadPaystack, paystackOrderRef } from "@/utils/paystack";
 import { t } from "@/utils/translation";
 
-// Paystack touches window at import; load client-side only.
-let PaystackPop: any;
-if (typeof window !== "undefined") {
-  import("@paystack/inline-js").then((module) => {
-    PaystackPop = module.default;
-  });
-}
 
 interface UseCheckoutPaymentOptions {
   /** Wallet-reduced amount to charge. */
@@ -34,11 +30,12 @@ const useCheckoutPayment = ({
 }: UseCheckoutPaymentOptions) => {
   const router = useRouter();
   const zoneHref = useZoneHref();
-  const dispatch = useDispatch();
-  const user = useSelector((state: any) => state.User.user);
-  const setting = useSelector((state: any) => state.Setting);
-  const selectedMethod = useSelector(
-    (state: any) => state.Checkout.selectedPaymentMethod,
+  const { handlePaymentResult } = usePaymentResult();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.User.user);
+  const setting = useAppSelector((state) => state.Setting);
+  const selectedMethod = useAppSelector(
+    (state) => state.Checkout.selectedPaymentMethod,
   );
 
   // Ecom order_item_id from place_order.
@@ -76,6 +73,7 @@ const useCheckoutPayment = ({
     });
     setPaymentLoading(false);
     if (response.status == 1) return goToSuccess(selectedMethod, orderId);
+    if (handlePaymentResult(response, { orderId, method: selectedMethod })) return;
     toast.error(response.message);
   };
 
@@ -129,30 +127,37 @@ const useCheckoutPayment = ({
     }
   };
 
-  const handlePayStackPayment = (
+  // Warm the SDK as soon as Paystack is picked, so the pay click opens instantly.
+  useEffect(() => {
+    if (selectedMethod === "paystack") loadPaystack().catch(() => {});
+  }, [selectedMethod]);
+
+  const handlePayStackPayment = async (
     orderId: number | string,
     capitalizedMethod: string,
   ) => {
     try {
+      const PaystackPop = await loadPaystack();
       const handler = PaystackPop.setup({
         key: setting?.payment_setting?.paystack_public_key,
-        email: user?.email,
-        amount: Number.parseFloat(String(payable)) * 100,
+        email: getPaystackEmail(user, setting?.setting?.support_email),
+        amount: Math.round(Number.parseFloat(String(payable)) * 100),
         currency: setting?.payment_setting?.paystack_currency_code,
-        ref: new Date().getTime().toString(),
+        ref: paystackOrderRef(orderId, user?.id),
         label: setting?.setting?.support_email,
         onClose: () => api.deleteOrder({ orderId }),
         callback: async (res: any) => {
           try {
             await confirmTransaction(orderId, res.reference, capitalizedMethod);
           } catch (error) {
-            console.log("Error", error);
+            console.error("[useCheckoutPayment]", error);
           }
         },
       });
       handler.openIframe();
     } catch (error) {
-      console.log("Paystack Error", error);
+      console.error("[useCheckoutPayment] paystack setup error", error);
+      toast.error(t("something_went_wrong"));
     }
   };
 
@@ -176,7 +181,11 @@ const useCheckoutPayment = ({
         toast.error(response?.message);
         return;
       }
-      if (method == "phonepe") dispatch(setPhonePeCheckoutDetails(response?.data));
+      if (method == "phonepe") {
+        dispatch(setPhonePeCheckoutDetails({ ...response?.data, type: "order", order_id: orderId }));
+        // Persist is throttled; flush before leaving for PhonePe
+        await persistor.flush();
+      }
       if (method == "razorpay") {
         handleRazorpayPayment(orderId, response?.data?.transaction_id, capitalizedMethod);
       } else if (method == "stripe") {
@@ -241,7 +250,7 @@ const useCheckoutPayment = ({
         else console.error("Unsupported payment method:", method);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[useCheckoutPayment]", error);
     }
   };
 

@@ -1,6 +1,6 @@
+import { useAppSelector } from "@/redux/hooks";
 import { t } from "@/utils/translation";
-import React, { useState } from "react";
-import { useSelector } from "react-redux";
+import { useState } from "react";
 import { toast } from "react-toastify";
 import * as api from "@/api/apiRoutes";
 import CancelReasonModal from "./CancelReasonModal";
@@ -10,6 +10,7 @@ import RatingUpdateModal from "./RatingUpdateModal";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
 import LightBox from "@/components/ui/LightBox";
 import { RiFileTextLine } from "react-icons/ri";
+import { LuCircleX } from "react-icons/lu";
 import useCurrency from "@/hooks/useCurrency";
 import PeekRating from "@/components/ui/peek-rating/PeekRating";
 import CartLineAddons from "@/components/cart/CartLineAddons";
@@ -81,8 +82,8 @@ const OrderItems = ({
   orderIsCancellable,
   orderIsReturnable,
 }: OrderItemsProps) => {
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const user = useSelector((state: any) => state.User.user);
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const user = useAppSelector((state) => state.User.user);
   // Live zone currency wins over order's placed-currency; currencyProp is a loading fallback.
   const { currency: resolvedCurrency } = useCurrency();
   const currency = resolvedCurrency || currencyProp;
@@ -140,7 +141,6 @@ const OrderItems = ({
         toast.error(response?.message);
       }
     } catch (error) {
-      console.log("Error", error);
     } finally {
       setRatingProductId(null);
     }
@@ -189,8 +189,7 @@ const OrderItems = ({
   const showAction = products?.some((product: any) => {
     const canCancel = itemCanCancel(product);
     const canReturn = itemCanReturn(product);
-    const isCancelled = Number(product?.active_status) === 7;
-    return canCancel || canReturn || isCancelled;
+    return canCancel || canReturn;
   });
 
   // Group items by product_id so pack-size variants share one rating row.
@@ -246,18 +245,13 @@ const OrderItems = ({
                 </button>
               )}
 
-              {Number(product?.active_status) === 7 && (
-                <button className={actionBtn.disabled} disabled>
-                  {t("cancelled")}
-                </button>
-              )}
             </div>
           ) : null;
 
           return (
             <div
               key={cartLineKey(product)}
-              className={`p-4 bg-[hsl(var(--card))] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6 ${
+              className={`p-4 bg-[hsl(var(--card))] flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between lg:gap-6 ${
                 isLastOfProduct ? "" : "border-b border-dashed border-[var(--border-color)]"
               }`}
             >
@@ -326,11 +320,6 @@ const OrderItems = ({
                       {t("item_returned_to_branch")}
                     </button>
                   )}
-                  {/* Cancellation reason — item-level, set once cancelled (active_status 7). */}
-                  {Number(product?.active_status) === 7 &&
-                    product?.cancellation_reason && (
-                      <p className="text-xs SecondaryTextColor">{`${t("reason")}: ${product?.cancellation_reason}`}</p>
-                    )}
                   {Number(product?.active_status) === 8 && (
                     <span className="text-sm text-[#DB3D26]">{`${t("total")} ${currency
                       }${product?.refund_amount} ${t("refunded")}`}</span>
@@ -372,6 +361,25 @@ const OrderItems = ({
                 {showAction && <div className="bottomBorder w-full"></div>}
                 {actionsNode}
               </div>
+
+              {/* Item cancelled (active_status 7): status + reason card */}
+              {Number(product?.active_status) === 7 && (
+                <div className="flex w-full items-start gap-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-color)] px-4 py-3.5 lg:basis-full">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/[0.05] SecondaryTextColor dark:bg-white/[0.08]">
+                    <LuCircleX size={20} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold textColor">
+                      {t("cancelled")}
+                    </p>
+                    {product?.cancellation_reason && (
+                      <p className="mt-0.5 text-sm leading-relaxed SecondaryTextColor">
+                        {`${t("reason")}: ${product?.cancellation_reason}`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
               );
             })}

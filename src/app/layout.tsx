@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Caveat, Playfair_Display } from "next/font/google";
 import "@/styles/globals.css";
 import Providers from "./Providers";
-import FontAwesomeLoader from "./FontAwesomeLoader";
 
 // Variable font, max weight 700 — font-extrabold/black clamp to it.
 const instrumentSans = Instrument_Sans({
@@ -16,6 +15,7 @@ const caveat = Caveat({
   subsets: ["latin"],
   variable: "--font-script",
   display: "swap",
+  preload: false,
 });
 
 // Display serif for the Spin & Win poster lockup only.
@@ -25,6 +25,7 @@ const playfair = Playfair_Display({
   style: ["italic"],
   variable: "--font-poster",
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -38,7 +39,10 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
-    icon: "/favicon.webp",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon.webp", type: "image/webp" },
+    ],
     apple: "/icons/apple-touch-icon.png",
   },
 };
@@ -62,10 +66,6 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${instrumentSans.variable} ${caveat.variable} ${playfair.variable}`}
     >
-      <head>
-        <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossOrigin="" />
-        <FontAwesomeLoader />
-      </head>
       <body className="antialiased !pointer-events-auto">
         <main>
           <Providers>{children}</Providers>

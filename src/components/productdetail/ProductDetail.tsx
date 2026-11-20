@@ -1,7 +1,7 @@
 "use client";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "@/api/apiRoutes";
-import { useDispatch, useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { FaStar, FaStarHalfAlt } from "react-icons/fa";
@@ -46,7 +46,6 @@ import { usePathname, useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ProductImageGallery from "./ProductImageGallery";
 import MobileProductGallery from "./MobileProductGallery";
-import ShareDrawer from "./ShareDrawer";
 import useHydratedMediaQuery from "@/hooks/useHydratedMediaQuery";
 import useDir from "@/hooks/useDir";
 import MobileBottomSheet from "../mobile-bottom-sheet/MobileBottomSheet";
@@ -79,9 +78,6 @@ import { flyToCart } from "@/utils/flyToCart";
 import AnimatedNumber from "@/components/ui/AnimatedNumber";
 import BellToggle from "@/components/ui/bell-toggle/BellToggle";
 import { productKey } from "@/utils/queryKeys";
-import AddonsModal from "@/components/addonsmodal/AddonsModal";
-import AddonRepeatModal from "@/components/addonsmodal/AddonRepeatModal";
-import AddonLinesModal from "@/components/addonsmodal/AddonLinesModal";
 import {
   hasAddonGroups,
   lineAddonPayload,
@@ -89,6 +85,11 @@ import {
   productCartQty,
 } from "@/utils/addons";
 
+import dynamic from "next/dynamic";
+const AddonsModal = dynamic(() => import("@/components/addonsmodal/AddonsModal"), { ssr: false });
+const AddonRepeatModal = dynamic(() => import("@/components/addonsmodal/AddonRepeatModal"), { ssr: false });
+const AddonLinesModal = dynamic(() => import("@/components/addonsmodal/AddonLinesModal"), { ssr: false });
+const ShareDrawer = dynamic(() => import("./ShareDrawer"), { ssr: false });
 interface ProductDetailProps {
   initialProduct?: any;
   initialProductMeta?: any;
@@ -104,17 +105,17 @@ const ProductDetail = ({
   const isMobileScreen = useHydratedMediaQuery("(max-width: 765px)");
   const canHoverZoom = useHydratedMediaQuery("(min-width: 1024px)");
 
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const router = useRouter();
   const { run: runNavClick } = useNavClick();
   const params = useParams();
   const slug = params?.slug;
   const pathname = usePathname();
-  const city = useSelector((state: any) => state.City.city);
-  const cityStatus = useSelector((state: any) => state.City.status);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
-  const setting = useSelector((state: any) => state.Setting);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const city = useAppSelector((state) => state.City.city);
+  const cityStatus = useAppSelector((state) => state.City.status);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
+  const setting = useAppSelector((state) => state.Setting);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   // SSR coords/mode until hydrated, so the seeded cache entry is hit on first render.
   const queryLatitude = !isHydrated
     ? initialProductMeta?.latitude
@@ -126,10 +127,10 @@ const ProductDetail = ({
     ? shopMode
     : (initialProductMeta?.shopMode ?? shopMode);
   const dir = useDir();
-  const cart = useSelector((state: any) => state.Cart);
-  const user = useSelector((state: any) => state.User);
-  const favoriteProductIds = useSelector(
-    (state: any) => state.Favorite.favouriteProductIds,
+  const cart = useAppSelector((state) => state.Cart);
+  const user = useAppSelector((state) => state.User);
+  const favoriteProductIds = useAppSelector(
+    (state) => state.Favorite.favouriteProductIds,
   );
   const favoriteProductIdsRef = useRef(favoriteProductIds);
   useEffect(() => {
@@ -200,7 +201,6 @@ const ProductDetail = ({
         });
       }
     } catch (error) {
-      console.log("Error", error);
     }
   };
 
@@ -231,7 +231,6 @@ const ProductDetail = ({
         }
       }
     } catch (error) {
-      console.log("Error", error);
     }
   };
 
@@ -379,8 +378,6 @@ const ProductDetail = ({
     product?.translations?.name ??
     product?.name;
 
-  const isColorAxis = (axis) => /colou?r/i.test(axis?.attribute_name || "");
-
   const selectedAxisValue = (attrId) =>
     selectVariant?.attributes?.find((a) => a.attribute_id === attrId)
       ?.attribute_value_id;
@@ -459,7 +456,6 @@ const ProductDetail = ({
         );
       }
     } catch (error: any) {
-      console.log("notify me error", error);
       toast.error(
         error?.response?.data?.message ||
           t("something_went_wrong") ||
@@ -551,7 +547,6 @@ const ProductDetail = ({
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("error", error);
     }
   };
 
@@ -579,7 +574,6 @@ const ProductDetail = ({
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("error", error);
     }
   };
 
@@ -658,7 +652,6 @@ const ProductDetail = ({
         toast.error(response?.message);
       }
     } catch (error) {
-      console.log("error", error);
     }
   };
 
@@ -700,7 +693,6 @@ const ProductDetail = ({
         toast.error(response?.message);
       }
     } catch (error) {
-      console.log("error", error);
     }
   };
 
@@ -1004,7 +996,6 @@ const ProductDetail = ({
           }
         }
       } catch (error) {
-        console.log("Error", error);
       }
     }
   };
@@ -1442,12 +1433,6 @@ const ProductDetail = ({
                                       axis.attribute_id,
                                       val.attribute_value_id,
                                     );
-                                  const swatch =
-                                    val.swatch_value ||
-                                    val.color ||
-                                    (isColorAxis(axis)
-                                      ? val.attribute_value
-                                      : null);
                                   return (
                                     <button
                                       key={val.attribute_value_id}

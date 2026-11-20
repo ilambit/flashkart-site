@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
@@ -28,13 +28,13 @@ interface CartOffersCarouselProps {
 // 3.5s, swipe or side arrows + dots. Hidden when no code applies.
 const CartOffersCarousel = ({ onOpenCoupons }: CartOffersCarouselProps) => {
   const dir = useDir();
-  const cartSubTotal = useSelector((state: any) => state.Cart?.cartSubTotal);
-  const city = useSelector((state: any) => state.City?.city);
-  const appliedCode = useSelector(
-    (state: any) => state.Cart?.promo_code?.promo_code,
+  const cartSubTotal = useAppSelector((state) => state.Cart?.cartSubTotal);
+  const city = useAppSelector((state) => state.City?.city);
+  const appliedCode = useAppSelector(
+    (state) => state.Cart?.promo_code?.promo_code,
   );
-  const isLoggedIn = useSelector((state: any) => !!state.User?.jwtToken);
-  const dispatch = useDispatch();
+  const isLoggedIn = useAppSelector((state) => !!state.User?.jwtToken);
+  const dispatch = useAppDispatch();
   // promo_code currently being validated — disables its button, shows "...".
   const [applyingCode, setApplyingCode] = useState<string | null>(null);
   // /promo rows — untyped API payload, kept `any[]`.
@@ -93,7 +93,7 @@ const CartOffersCarousel = ({ onOpenCoupons }: CartOffersCarouselProps) => {
               (res?.data || []).filter((c: any) => c?.is_applicable != 0),
             );
         })
-        .catch((error) => console.log("Error", error));
+        .catch((error) => {});
     }, 600);
     return () => {
       alive = false;
@@ -148,7 +148,6 @@ const CartOffersCarousel = ({ onOpenCoupons }: CartOffersCarouselProps) => {
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("Error", error);
       toast.error(t("something_went_wrong"));
     } finally {
       setApplyingCode(null);

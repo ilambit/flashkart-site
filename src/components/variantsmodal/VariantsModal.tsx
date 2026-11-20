@@ -1,10 +1,10 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
   Dialog as DialogRaw,
   DialogContent as DialogContentRaw,
   DialogHeader as DialogHeaderRaw,
 } from "@/components/ui/dialog";
 import * as api from "@/api/apiRoutes";
-import { useSelector, useDispatch } from "react-redux";
 import { t } from "@/utils/translation";
 import {
   hasReachedAllowedQty,
@@ -55,10 +55,10 @@ interface VariantsModalProps {
 }
 
 const VariantsModal = ({ product, showVariants, setShowVariants }: VariantsModalProps) => {
-  const dispatch = useDispatch();
-  const cart = useSelector((state: any) => state.Cart);
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const city = useSelector((state: any) => state.City.city);
+  const dispatch = useAppDispatch();
+  const cart = useAppSelector((state) => state.Cart);
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const city = useAppSelector((state) => state.City.city);
   const zoneHref = useZoneHref();
   const rtl = useIsRtl();
 
@@ -202,7 +202,6 @@ const VariantsModal = ({ product, showVariants, setShowVariants }: VariantsModal
         toast.error(response?.message);
       }
     } catch (error) {
-      console.log("error", error);
     } finally {
       setPendingVariantIds((ids) => ids.filter((id) => id !== variant?.id));
     }
@@ -242,7 +241,6 @@ const VariantsModal = ({ product, showVariants, setShowVariants }: VariantsModal
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("error", error);
     } finally {
       setPendingVariantIds((ids) => ids.filter((id) => id !== variant?.id));
     }

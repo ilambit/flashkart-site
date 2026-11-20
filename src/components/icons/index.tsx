@@ -287,59 +287,6 @@ export const PULSE_ICONS: Record<string, string[]> = {
   ],
 };
 
-export const HeartIcon = ({ size = 24, className = "" }: IconProps) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`shrink-0 ${className}`}
-    aria-hidden="true"
-  >
-    <path d={PULSE_ICONS.heart[0]} />
-  </svg>
-);
-
-export const StarIcon = ({ size = 24, className = "" }: IconProps) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`shrink-0 ${className}`}
-    aria-hidden="true"
-  >
-    <path d={PULSE_ICONS.star[0]} />
-  </svg>
-);
-
-export const ThumbIcon = ({ size = 24, className = "" }: IconProps) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={`shrink-0 ${className}`}
-    aria-hidden="true"
-  >
-    {PULSE_ICONS.thumb.map((d) => (
-      <path key={d} d={d} />
-    ))}
-  </svg>
-);
-
 // SpinWin stand graphics paths for cabinet, base, panel, and wings.
 export const SPIN_WIN_STAND_PATHS = {
   cabinet: `

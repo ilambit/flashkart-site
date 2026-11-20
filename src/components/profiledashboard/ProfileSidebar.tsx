@@ -1,22 +1,19 @@
+import { useAppSelector } from "@/redux/hooks";
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
+import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import { t } from "@/utils/translation";
 import Image from "next/image";
 import LogoutModal from "../logoutmodal/LogoutModal";
 import {
   FiUser,
   FiMapPin,
-  FiStar,
   FiShoppingBag,
   FiClock,
   FiHeart,
   FiFileText,
   FiBell,
   FiSettings,
-  FiClipboard,
-  FiMessageSquare,
   FiGift,
   FiLogOut,
 } from "react-icons/fi";
@@ -27,13 +24,7 @@ import ReferAndEarnModal from "@/components/refer-and-earn/ReferAndEarnModal";
 import SpinWheelPromoBanner from "./SpinWheelPromoBanner";
 import useIsHydrated from "@/hooks/useIsHydrated";
 import { useSpinWheelRewards } from "@/hooks/useSpinWheelRewards";
-import LightImage from "@/assets/Vector.svg";
-import MoneyImage from "@/assets/bx-money.svg";
-import BikeImage from "@/assets/bike.svg";
-import { FaArrowRight } from "react-icons/fa";
-import { formatDate } from "@/utils/helperFunction";
-import { ArrowRight } from "lucide-react";
-import { toast } from "react-toastify";
+import { LuArrowRight } from "react-icons/lu";
 import useZoneHref from "@/hooks/useZoneHref";
 
 interface ProfileSidebarProps {
@@ -45,12 +36,11 @@ interface ProfileSidebarProps {
 
 const ProfileSidebar = ({ setSelectedTab, selectedTab, onNavigate }: ProfileSidebarProps) => {
   const zoneHref = useZoneHref();
-  const router = useRouter();
   const pathname = usePathname();
-  const user = useSelector((state: any) => state.User.user);
-  const setting = useSelector((state: any) => state?.Setting?.setting);
-  const countrySetting = useSelector(
-    (state: any) => state.CountrySetting.countrySetting,
+  const user = useAppSelector((state) => state.User.user);
+  const setting = useAppSelector((state) => state?.Setting?.setting);
+  const countrySetting = useAppSelector(
+    (state) => state.CountrySetting.countrySetting,
   );
   // Hide the Refer & Earn menu entry when both reward amounts are 0.
   const hasReferReward =
@@ -58,7 +48,7 @@ const ProfileSidebar = ({ setSelectedTab, selectedTab, onNavigate }: ProfileSide
     countrySetting?.referral_credit_first_order > 0;
 
   // Flag indicating if user has spin wheel rewards
-  const city = useSelector((state: any) => state.City);
+  const city = useAppSelector((state) => state.City);
   const isHydrated = useIsHydrated();
   const { summary: rewardsSummary } = useSpinWheelRewards({
     latitude: isHydrated ? city?.city?.latitude : undefined,
@@ -69,18 +59,6 @@ const ProfileSidebar = ({ setSelectedTab, selectedTab, onNavigate }: ProfileSide
 
   const [showReferAndEarn, setShowReferAndEarn] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
-  const [current, setCurrent] = useState(0);
-
-  // Number of promo slides
-  const SLIDES_COUNT = 3;
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % SLIDES_COUNT);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
   const handleTabChange = (tabName: string) => {
     setSelectedTab(tabName);
   };
@@ -90,62 +68,6 @@ const ProfileSidebar = ({ setSelectedTab, selectedTab, onNavigate }: ProfileSide
   };
 
   const activeTab = (pathname || "").split("/").pop();
-
-  const slides = [
-    {
-      id: 1,
-      text: `${t("subscribe")} ${user?.subscription_name}`,
-      image: (
-        <div className="p-2 md:p-1.5 lg:p-2  primaryBackColor rounded-full border border-white h-9 w-9 md:h-7 md:w-7 lg:w-9 lg:h-9 shrink-0">
-          <Image
-            src={LightImage}
-            alt="light logo"
-            className={`h-5 w-5 md:w-4 md:h-4 lg:w-5 lg:h-5 object-contain `}
-            height={20}
-            width={20}
-            unoptimized
-          />
-        </div>
-      ),
-      theme: "primaryColorBorder primaryLightBack primaryColor",
-    },
-    {
-      id: 2,
-      text: t("go_max_save_more"),
-      image: (
-        <div className="p-2 md:p-1.5 lg:p-2 bg-[#0186D8] rounded-full border border-white h-9 w-9 md:h-7 md:w-7 lg:w-9 lg:h-9 flex items-center shrink-0">
-          <Image
-            src={MoneyImage}
-            alt="light logo"
-            className={`h-6 w-6 md:w-4 md:h-4 lg:w-6 lg:h-6 object-contain `}
-            height={20}
-            width={20}
-          />
-        </div>
-      ),
-      theme: "border-blue-500 bg-[#0186D81F] text-[#0186D8]",
-    },
-    {
-      id: 3,
-      text: t("free_delivery_desc"),
-      image: (
-        <div className="p-2 md:p-1.5 lg:p-2 bg-[#DB9305] rounded-full border  border-white h-9 w-9 md:h-7 md:w-7 lg:w-9 lg:h-9 shrink-0">
-          <Image
-            src={BikeImage}
-            alt="light logo"
-            className={`h-5 w-5 md:w-4 md:h-4 lg:w-5 lg:h-5 object-contain `}
-            height={20}
-            width={20}
-          />
-        </div>
-      ),
-      theme: "border-orange-500 bg-[#DB93051F] text-[#DB9305]",
-    },
-  ];
-
-  const handleSubscriptionClick = () => {
-    router.push(zoneHref("/profile/subscription"));
-  };
 
   // No Reset Password entry here: it's a button on the Edit Profile card that
   // opens ResetPasswordModal. The standalone /profile/resetpassword route still
@@ -200,12 +122,6 @@ const ProfileSidebar = ({ setSelectedTab, selectedTab, onNavigate }: ProfileSide
       tab: "address",
       href: "/profile/address",
     },
-    user?.is_subscription_plans && {
-      icon: FiStar,
-      label: user?.subscription_name,
-      tab: "subscription",
-      href: "/profile/subscription",
-    },
     {
       icon: FiBell,
       label: t("notification"),
@@ -220,7 +136,7 @@ const ProfileSidebar = ({ setSelectedTab, selectedTab, onNavigate }: ProfileSide
     },
 
     { icon: FiLogOut, label: t("logout"), onClick: () => setShowLogout(true) },
-  ].filter(Boolean);
+  ].filter(Boolean) as any[];
 
   return (
     <div>
@@ -275,117 +191,6 @@ const ProfileSidebar = ({ setSelectedTab, selectedTab, onNavigate }: ProfileSide
           <div className="border-b border-[color:var(--border-color)]" />
         </div>
 
-        {/* Subscription promo */}
-        {user?.is_subscription_plans && (
-          <div className="p-4 border-b border-[color:var(--border-color)]">
-            <div className="flex gap-6 flex-col">
-              <div className="flex gap-3">
-                {user?.has_active_subscription == 1 ? (
-                  <div className="flex items-start w-full justify-between gap-2">
-                    <div className="flex gap-2">
-                      <div className="p-[5.5px] gap-[6px] primaryBackColor rounded-full border border-white h-8 w-8 shrink-0">
-                        <Image
-                          src={LightImage}
-                          alt="light logo"
-                          className={`h-full w-full object-contain `}
-                          height={24}
-                          width={24}
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <h2 className="font-bold text-base text-nowrap">
-                          {user?.user_subscription_plan_name}
-                        </h2>
-                        <p className="text-sm leading-[17px] font-normal">
-                          {`${t("expires_on")} ${formatDate(user?.subscription_expiry_date)}`}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="primaryBackColor text-white text-sm font-semibold px-3 py-1 rounded-full">
-                      {t("active")}
-                    </span>
-                  </div>
-                ) : user?.has_active_subscription == 2 ? (
-                  <div className="flex flex-col gap-6">
-                    <div className="flex items-start w-full justify-between gap-2 ">
-                      <div className="flex gap-[12px] ">
-                        <div className="p-[5.5px] gap-[6px] primaryBackColor rounded-full border border-white h-8 w-8 shrink-0">
-                          <Image
-                            src={LightImage}
-                            alt="light logo"
-                            className={`h-full w-full object-contain `}
-                            height={24}
-                            width={24}
-                          />
-                        </div>
-                        <div className="flex flex-col">
-                          <h2 className="font-bold text-base">
-                            {user?.subscription_name}
-                          </h2>
-                          <p className="text-sm leading-[17px] font-normal">
-                            {t("expired_plan_desc")}
-                          </p>
-                        </div>
-                      </div>
-
-                      <span className="bg-[#DB3D26] text-white text-sm font-semibold px-3 py-1 rounded-full ">
-                        {t("expired")}
-                      </span>
-                    </div>
-                    <button
-                      className="primaryBackColor text-white text-base font-semibold px-4 py-2 rounded-md flex items-center gap-2 justify-center w-full"
-                      onClick={handleSubscriptionClick}
-                    >
-                      {`${t("renew")} ${user?.subscription_name}`}
-                      <ArrowRight className="w-5 h-5 text-white" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col w-3/4 ">
-                    <h2 className="font-bold text-base">
-                      {user?.subscription_name}
-                    </h2>
-                    <p className="text-sm leading-[17px] font-normal ">
-                      {t("subscription_desc")}
-                    </p>
-                  </div>
-                )}
-              </div>
-              {user?.has_active_subscription == 0 && (
-                <div className="flex justify-center ">
-                  <div
-                    className={`relative h-14 w-full max-w-sm overflow-hidden rounded border-[1.5px] transition-colors duration-500 ${slides[current].theme} rounded-md`}
-                  >
-                    {slides.map((slide, index) => (
-                      <div
-                        key={slide.id}
-                        className={`absolute inset-0 flex items-center justify-center font-semibold transition duration-500 ease-in-out cursor-pointer `}
-                        style={{
-                          transform: `translateY(${(index - current) * 100}%)`,
-                          opacity: index === current ? 1 : 0,
-                        }}
-                        onClick={handleSubscriptionClick}
-                      >
-                        <div className="flex gap-2 items-center font-bold justify-between px-4 w-full">
-                          <div className="flex gap-2 items-center">
-                            {slide.image}
-                            <div className="text-sm lg:text-[16px]">
-                              {slide.text}
-                            </div>
-                          </div>
-                          <div>
-                            <FaArrowRight />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Menu */}
         <ul className="flex flex-col gap-0.5 px-4 py-2">
           {menu.map((item) => {
@@ -416,7 +221,7 @@ const ProfileSidebar = ({ setSelectedTab, selectedTab, onNavigate }: ProfileSide
                   }`}
                 />
                 <span className="flex-1 truncate">{item.label}</span>
-                <ArrowRight
+                <LuArrowRight
                   size={15}
                   className={`shrink-0 transition duration-200 ${
                     active

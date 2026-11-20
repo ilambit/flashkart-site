@@ -1,10 +1,10 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { t } from "@/utils/translation";
-import React, { useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { MdOutlineCelebration } from "react-icons/md";
 import { RiWallet3Line } from "react-icons/ri";
 import { FiChevronRight, FiTrash2 } from "react-icons/fi";
-import { useSelector, useDispatch } from "react-redux";
 import { clearCartPromo } from "@/redux/slices/cartSlice";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -26,7 +26,7 @@ interface CartCouponCardProps {
 const CartCouponCard = ({ setShowCouponCode, cartData }: CartCouponCardProps) => {
   const zoneHref = useZoneHref();
   const router = useRouter();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const rtl = useIsRtl();
   // Notch/tear sit 66% from start edge; mirror to 34% under RTL to stay on
   // the (flex-reversed) stub's side.
@@ -34,8 +34,8 @@ const CartCouponCard = ({ setShowCouponCode, cartData }: CartCouponCardProps) =>
 
   const [showLogin, setShowLogin] = useState(false);
 
-  const cart = useSelector((state: any) => state.Cart);
-  const user = useSelector((state: any) => state.User);
+  const cart = useAppSelector((state) => state.Cart);
+  const user = useAppSelector((state) => state.User);
 
   const handleClearPromo = () => {
     dispatch(clearCartPromo());
@@ -65,11 +65,10 @@ const CartCouponCard = ({ setShowCouponCode, cartData }: CartCouponCardProps) =>
   // "wallet" coupons are cashback (credited after order, doesn't reduce total).
   // Other types reduce the total up-front.
   const isCashbackCoupon = cart?.promo_code?.discount_apply_type === "wallet";
+  // API sub_total is already after product discounts; MRP row adds saved_amount back.
   const subTotal = Number(cartData?.sub_total ?? cart?.cartSubTotal ?? 0);
-  const cartTotal = Math.max(
-    subTotal - savedAmount - (isCashbackCoupon ? 0 : promoDiscount),
-    0,
-  );
+  const mrpTotal = subTotal + savedAmount;
+  const cartTotal = Math.max(subTotal - (isCashbackCoupon ? 0 : promoDiscount), 0);
   // saved_amount already accounts for the applied promo — don't add promoDiscount again.
   const totalSaved = savedAmount;
 
@@ -176,7 +175,7 @@ const CartCouponCard = ({ setShowCouponCode, cartData }: CartCouponCardProps) =>
       <div className="flex flex-col gap-2.5 py-1">
         <div className="flex justify-between items-center text-sm">
           <p className="SecondaryTextColor">{t("sub_total")}</p>
-          <p className="font-semibold textColor">{money(subTotal)}</p>
+          <p className="font-semibold textColor">{money(mrpTotal)}</p>
         </div>
 
         {savedAmount > 0 && (

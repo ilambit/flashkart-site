@@ -1,4 +1,3 @@
-import React from 'react'
 import Image from 'next/image'
 import { t } from "@/utils/translation"
 import { formatCustomDate } from "@/lib/utils"
@@ -40,7 +39,8 @@ const TransactionCard = ({ transaction }: TransactionCardProps) => {
     // Transaction currency is a historical fact (paid in this currency at the
     // time) — must not drift with the viewer's current zone.
     const { currency, decimals } = useCurrency(transaction);
-    const amount = formatCurrency(transaction?.amount, currency, decimals);
+    // decimal_point 0 rounded API decimals; show 2 and trim pure ".00" like WalletHistory
+    const amount = formatCurrency(transaction?.amount, currency, decimals > 0 ? decimals : 2, true);
 
     return (
         <div className='col-span-12 lg:col-span-6'>

@@ -59,7 +59,6 @@ const authHeaders = () => ({
 
 
 export const log = (...a: any[]) => {
-  console.log("%c[chatWs]", "color:#6b46c1;font-weight:bold", ...a);
 };
 
 interface PusherBaseConfig {
@@ -323,32 +322,3 @@ export interface WsStatus {
   state: string;
   socketId: string | null;
 }
-
-export const getWsStatus = (): WsStatus => {
-  const cfg = readBroadcastConfig();
-  return {
-    configured: Boolean(cfg),
-    driver: cfg?.driver || null,
-    key: cfg?.key || null,
-    // `pusher` is null until something subscribes.
-    state: pusher?.connection?.state || "idle",
-    socketId: pusher?.connection?.socket_id || null,
-  };
-};
-
-/** Reconnect with a fresh token (call after login / token refresh). */
-export const refreshChatWsAuth = (): void => {
-  if (pusher) {
-    pusher.disconnect();
-    pusher = null;
-    activeConfigKey = null;
-  }
-};
-
-export const disconnectChatWs = (): void => {
-  if (pusher) {
-    pusher.disconnect();
-    pusher = null;
-    activeConfigKey = null;
-  }
-};

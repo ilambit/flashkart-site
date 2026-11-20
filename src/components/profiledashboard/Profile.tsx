@@ -1,5 +1,6 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useState, useEffect, useCallback } from "react";
 import { t } from "@/utils/translation";
 import Image from "next/image";
@@ -10,16 +11,15 @@ import {
   FiMail,
   FiTrash2,
   FiLoader,
-  FiCheck,
   FiSmartphone,
+  FiCheckCircle,
 } from "react-icons/fi";
 import PhoneNumberInput from "../phonenumberinput/PhoneNumberInput";
-import { useSelector } from "react-redux";
 import DeleteModal from "../deleteModal/DeleteModal";
 import ResetPasswordModal from "./ResetPasswordModal";
+import VerifyContactModal from "./VerifyContactModal";
 import * as api from "@/api/apiRoutes";
 import { setCurrentUser } from "@/redux/slices/userSlice";
-import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import CountrySelect from "../phonenumberinput/CountrySelect";
 import useDir from "@/hooks/useDir";
@@ -66,20 +66,24 @@ interface ProfileFormErrors {
 }
 
 const Profile = () => {
-  const dispatch = useDispatch();
-  const user = useSelector((state: any) => state.User.user);
-  const authType = useSelector((state: any) => state.User.authType);
-  const setting = useSelector((state: any) => state?.Setting?.setting);
-  const language = useSelector((state: any) => state.Language.selectedLanguage);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.User.user);
+  const storedAuthType = useAppSelector((state) => state.User.authType);
+  // Server login type wins; redux authType goes stale when the login modal reopens
+  const authType = user?.type || storedAuthType;
+  const setting = useAppSelector((state) => state?.Setting?.setting);
+  const language = useAppSelector((state) => state.Language.selectedLanguage);
   const dir = useDir();
-  const city = useSelector((state: any) => state.City.city);
+  const city = useAppSelector((state) => state.City.city);
 
   const [username, setUsername] = useState<string | undefined>(user?.name);
   const [email, setEmail] = useState<string | undefined>(user?.email);
   // Mobile number string
-  const [mobileNumber, setMobileNumber] = useState<string | undefined>(user?.mobile);
+  const [mobileNumber, setMobileNumber] = useState<string | undefined>(
+    user?.mobile,
+  );
   // Phone input values and dial country code
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState(user?.country_code || "");
   const [countryId, setCountryId] = useState(user?.country_id || "");
   const [profileImage, setProfileImage] = useState<File | null>(null);
@@ -90,6 +94,14 @@ const Profile = () => {
   const [phoneLengthError, setPhoneLengthError] = useState<string | null>(null);
   const [showDelete, setShowDelete] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [verifyType, setVerifyType] = useState<"mobile" | "email" | null>(null);
+  // True when verify was triggered by a blocked save of an edited value
+  const [verifyForSave, setVerifyForSave] = useState(false);
+  // Server said the OTP/email service is off: hide that Verify button
+  const [unavailable, setUnavailable] = useState<{
+    mobile?: boolean;
+    email?: boolean;
+  }>({});
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing local form state from the user prop
@@ -188,6 +200,10 @@ const Profile = () => {
     }
 
     setErrors({});
+    await saveProfile();
+  };
+
+  const saveProfile = async () => {
     setIsSaving(true);
     try {
       const response = await api.updateProfile({
@@ -208,19 +224,97 @@ const Profile = () => {
         });
         dispatch(setCurrentUser({ data: user?.data }));
         toast.success(response.message);
+      } else if (response?.status_code === "EMAIL_NOT_VERIFIED") {
+        toast.info(response.message);
+        setVerifyForSave(true);
+        setVerifyType("email");
+      } else if (response?.status_code === "MOBILE_NOT_VERIFIED") {
+        toast.info(response.message);
+        setVerifyForSave(true);
+        setVerifyType("mobile");
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      console.log(error);
       toast.error("Something went wrong");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const emailLocked = authType == "google" || authType == "email";
+  const refreshUser = async () => {
+    try {
+      const res = await api.getUser({
+        latitude: city?.latitude,
+        longitude: city?.longitude,
+      });
+      if (res?.data) dispatch(setCurrentUser({ data: res.data }));
+    } catch (error) {
+      console.error("[Profile]", error);
+    }
+  };
+
+  // Login identifier is locked: phone accounts lock mobile, others lock email
+  const emailLocked =
+    authType == "google" || authType == "apple" || authType == "email";
   const mobileLocked = authType == "phone";
+
+  const stripPlus = (v: unknown) => String(v || "").replace(/^\+/, "");
+  const emailTyped = (email || "").trim();
+  const mobileTyped = (mobileNumber || "").trim();
+  const emailDirty =
+    emailTyped.toLowerCase() !== String(user?.email || "").toLowerCase();
+  const mobileDirty =
+    mobileTyped !== String(user?.mobile || "") ||
+    stripPlus(countryCode) !== stripPlus(user?.country_code);
+  const emailVerified =
+    user?.email_verified == 1 || user?.email_verified === true;
+  const mobileVerified =
+    user?.mobile_verified == 1 || user?.mobile_verified === true;
+  const emailVerifyAvailable =
+    setting?.email_verification_available == 1 && !unavailable.email;
+  const mobileVerifyAvailable =
+    setting?.mobile_verification_available == 1 && !unavailable.mobile;
+
+  const renderVerify = (kind: "mobile" | "email") => {
+    const isEmail = kind === "email";
+    const typed = isEmail ? emailTyped : mobileTyped;
+    const dirty = isEmail ? emailDirty : mobileDirty;
+    const verified = isEmail ? emailVerified : mobileVerified;
+    const locked = isEmail ? emailLocked : mobileLocked;
+    const available = isEmail ? emailVerifyAvailable : mobileVerifyAvailable;
+    const invalid = isEmail ? !!validateEmail(typed) : !!phoneLengthError;
+    if (!typed) return null;
+    if (!dirty && verified)
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
+          <FiCheckCircle size={12} />
+          {t("verified")}
+        </span>
+      );
+    if (locked || !available) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => setVerifyType(kind)}
+        disabled={invalid}
+        className="text-xs font-semibold primaryColor hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+      >
+        {t("verify")}
+      </button>
+    );
+  };
+
+  // Verify API saves the contact itself; only re-save if other fields are pending
+  const handleVerified = () => {
+    const otherDirty =
+      username !== user?.name ||
+      countryId !== (user?.country_id || "") ||
+      !!profileImage ||
+      (verifyType === "email" ? mobileDirty : emailDirty);
+    if (verifyForSave || otherDirty) saveProfile();
+    else refreshUser();
+  };
 
   // Derive form validity flag for submit button
   const isFormValid =
@@ -233,7 +327,10 @@ const Profile = () => {
     (authType === "phone" || !phoneLengthError) &&
     !validateImage(profileImage);
 
-  const inputClass = (hasError: boolean | string | undefined, locked: boolean) =>
+  const inputClass = (
+    hasError: boolean | string | undefined,
+    locked: boolean,
+  ) =>
     `block w-full rounded-xl border py-2.5 pl-10 pr-4 text-sm outline-none transition duration-200 placeholder:text-gray-400 text-start bg-gray-50/70 dark:bg-zinc-800/60 ${
       hasError
         ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100 dark:focus:ring-red-500/20"
@@ -266,13 +363,6 @@ const Profile = () => {
   const showResetPasswordAction =
     authType == "email" ||
     (authType == "phone" && setting?.phone_auth_password == 1);
-
-  const authLabel =
-    authType === "google"
-      ? "Google"
-      : authType === "phone"
-        ? t("mobileNumber")
-        : t("email");
 
   return (
     <div
@@ -418,18 +508,21 @@ const Profile = () => {
 
               {/* Email Address */}
               <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="email"
-                  className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1"
-                >
-                  {t("email")}{" "}
-                  {authType !== "phone" && (
-                    <span className="text-red-500">*</span>
-                  )}
-                  {emailLocked && (
-                    <FiLock className="text-gray-400" size={12} />
-                  )}
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label
+                    htmlFor="email"
+                    className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1"
+                  >
+                    {t("email")}{" "}
+                    {authType !== "phone" && (
+                      <span className="text-red-500">*</span>
+                    )}
+                    {emailLocked && (
+                      <FiLock className="text-gray-400" size={12} />
+                    )}
+                  </label>
+                  {renderVerify("email")}
+                </div>
                 <div className="relative flex items-center w-full">
                   <span className="absolute start-3.5 text-gray-400">
                     <FiMail size={16} />
@@ -452,18 +545,21 @@ const Profile = () => {
 
               {/* Mobile Number */}
               <div className="flex flex-col gap-1.5">
-                <label
-                  htmlFor="mobile"
-                  className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1"
-                >
-                  {t("mobileNumber")}{" "}
-                  {authType === "phone" && (
-                    <span className="text-red-500">*</span>
-                  )}
-                  {mobileLocked && (
-                    <FiLock className="text-gray-400" size={12} />
-                  )}
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label
+                    htmlFor="mobile"
+                    className="text-xs font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1"
+                  >
+                    {t("mobileNumber")}{" "}
+                    {authType === "phone" && (
+                      <span className="text-red-500">*</span>
+                    )}
+                    {mobileLocked && (
+                      <FiLock className="text-gray-400" size={12} />
+                    )}
+                  </label>
+                  {renderVerify("mobile")}
+                </div>
                 <PhoneNumberInput
                   value={mobileNumber || ""}
                   countryCode={countryCode}
@@ -537,6 +633,20 @@ const Profile = () => {
       <ResetPasswordModal
         showResetPassword={showResetPassword}
         setShowResetPassword={setShowResetPassword}
+      />
+      <VerifyContactModal
+        type={verifyType}
+        email={emailTyped}
+        mobile={mobileTyped}
+        countryCode={countryCode}
+        onClose={() => {
+          setVerifyType(null);
+          setVerifyForSave(false);
+        }}
+        onVerified={handleVerified}
+        onUnavailable={(kind) =>
+          setUnavailable((prev) => ({ ...prev, [kind]: true }))
+        }
       />
     </div>
   );

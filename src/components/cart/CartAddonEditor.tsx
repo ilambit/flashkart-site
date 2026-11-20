@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import * as api from "@/api/apiRoutes";
 import { t } from "@/utils/translation";
@@ -41,9 +41,9 @@ const CartAddonEditor = ({
   onBack,
   onSaved,
 }: CartAddonEditorProps) => {
-  const dispatch = useDispatch();
-  const cart = useSelector((state: any) => state.Cart);
-  const city = useSelector((state: any) => state.City.city);
+  const dispatch = useAppDispatch();
+  const cart = useAppSelector((state) => state.Cart);
+  const city = useAppSelector((state) => state.City.city);
 
   const [groups, setGroups] = useState<AddonGroup[]>([]);
   const [draft, setDraft] = useState<AddonDraft>({});
@@ -75,7 +75,7 @@ const CartAddonEditor = ({
         setGroups(fetched);
         setDraft(draftFromLine(fetched, line));
       })
-      .catch((error: any) => console.log("addon groups error", error))
+      .catch((error: any) => {})
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -149,7 +149,6 @@ const CartAddonEditor = ({
       dispatch(setCartSubTotal({ data: latest?.data?.sub_total }));
       onSaved(latest);
     } catch (error) {
-      console.log("addon edit error", error);
     } finally {
       setSaving(false);
     }

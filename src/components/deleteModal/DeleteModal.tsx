@@ -1,8 +1,8 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import type { Dispatch, SetStateAction } from "react";
 import { LuTriangleAlert } from "react-icons/lu";
 import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
 import { t } from "@/utils/translation";
-import { useSelector } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
 import * as api from "@/api/apiRoutes";
 import { clearAllFilter } from "@/redux/slices/productFilterSlice";
@@ -17,7 +17,6 @@ import {
   setCartSubTotal,
   setIsGuest,
 } from "@/redux/slices/cartSlice";
-import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import useZoneHref from "@/hooks/useZoneHref";
@@ -30,10 +29,10 @@ interface DeleteModalProps {
 const DeleteModal = ({ showDelete, setShowDelete }: DeleteModalProps) => {
   const zoneHref = useZoneHref();
   const router = useRouter();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
-  const user = useSelector((state: any) => state.User);
-  const theme = useSelector((state: any) => state.Theme.theme);
+  const user = useAppSelector((state) => state.User);
+  const theme = useAppSelector((state) => state.Theme.theme);
 
   const handleHideDelete = () => {
     setShowDelete(false);
@@ -61,7 +60,7 @@ const DeleteModal = ({ showDelete, setShowDelete }: DeleteModalProps) => {
             setShowDelete(false);
             toast.success(response.message);
           } catch (error) {
-            console.log("error", error);
+            console.error("[DeleteModal]", error);
           }
         } else {
           dispatch(clearAllFilter());
@@ -82,7 +81,7 @@ const DeleteModal = ({ showDelete, setShowDelete }: DeleteModalProps) => {
         toast.error(response.message);
       }
     } catch (error) {
-      console.log("Error", error);
+      console.error("[DeleteModal]", error);
     }
   };
 

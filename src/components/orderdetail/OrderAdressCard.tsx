@@ -1,5 +1,4 @@
 import { t } from '@/utils/translation'
-import React from 'react'
 
 interface OrderAdressCardProps {
     // Order detail payload shape varies by order type (Quick vs Ecom) and has

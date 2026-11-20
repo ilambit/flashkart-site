@@ -1,6 +1,6 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
-import { useSelector, useDispatch } from "react-redux";
 import { t } from "@/utils/translation";
 import * as api from "@/api/apiRoutes";
 import { toast } from "react-toastify";
@@ -17,7 +17,7 @@ import {
 } from "@/redux/slices/cartSlice";
 import { setSetting } from "@/redux/slices/settingSlice";
 import { setTokenThunk } from "@/redux/thunk/loginthunk";
-import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
+import { getLoginProof, clearLoginProof, isIdentityNotVerified } from "@/utils/loginProof";
 import CountrySelect from "../phonenumberinput/CountrySelect";
 import {
   getMobileLengthBounds,
@@ -52,11 +52,11 @@ const NewUserModal = ({
   setCountryCode,
   setIsOTP,
 }: NewUserModalProps) => {
-  const dispatch = useDispatch();
-  const authType = useSelector((state: any) => state.User.authType);
-  const cart = useSelector((state: any) => state.Cart);
-  const setting = useSelector((state: any) => state.Setting.setting);
-  const city = useSelector((state: any) => state.City.city);
+  const dispatch = useAppDispatch();
+  const authType = useAppSelector((state) => state.User.authType);
+  const cart = useAppSelector((state) => state.Cart);
+  const setting = useAppSelector((state) => state.Setting.setting);
+  const city = useAppSelector((state) => state.City.city);
 
   const [loading, setLoading] = useState(false);
   const [selectedCountryId, setSelectedCountryId] = useState<number | string | null>(null);
@@ -120,9 +120,13 @@ const NewUserModal = ({
         country_id: selectedCountryId,
         type: authType,
         friend_code: friendCode,
+        firebaseIdToken: getLoginProof().firebaseIdToken,
+        otp: getLoginProof().otp,
+        phoneVerificationToken: getLoginProof().phoneVerificationToken,
       });
       if (result?.status == 1) {
-        const tokenSet = await (dispatch as any)(
+        clearLoginProof();
+        await dispatch(
           setTokenThunk(result?.data?.access_token)
         );
         await getCurrentUser();
@@ -144,12 +148,13 @@ const NewUserModal = ({
       } else {
         // Fallback to raw message or status code on error
         toast.error(
-          t(result?.message) || result?.message || t(result?.status_code),
+          isIdentityNotVerified(result)
+            ? t("identity_not_verified")
+            : t(result?.message) || result?.message || t(result?.status_code),
         );
         setLoading(false);
       }
     } catch (error: any) {
-      console.log("error", error);
       setLoading(false);
     }
   };
@@ -162,7 +167,7 @@ const NewUserModal = ({
         typeof res.data === "string" ? JSON.parse(atob(res.data)) : res.data;
       dispatch(setSetting({ data: parsedSetting }));
     } catch (error: any) {
-      console.log("error", error);
+      console.error("[NewUserModal]", error);
     }
   };
 
@@ -172,7 +177,7 @@ const NewUserModal = ({
       dispatch(setCurrentUser({ data: response.data }));
       toast.success(t("login_success"));
     } catch (error: any) {
-      console.log("error", error);
+      console.error("[NewUserModal]", error);
     }
   };
 
@@ -206,10 +211,9 @@ const NewUserModal = ({
         dispatch(clearAllGuestCarts());
         dispatch(setCartSubTotal({ data: response.sub_total }));
       } else {
-        console.log("Error while adding bulk products");
       }
     } catch (error: any) {
-      console.log("Error", error);
+      console.error("[NewUserModal]", error);
     }
   };
 
@@ -236,7 +240,7 @@ const NewUserModal = ({
         dispatch(setCart({ data: null }));
       }
     } catch (error: any) {
-      console.log("error", error);
+      console.error("[NewUserModal]", error);
     }
   };
 

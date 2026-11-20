@@ -34,6 +34,8 @@ interface CheckoutItemRowProps {
   otherLinesQty?: number;
   /** Variant can't be delivered to this address. */
   isUndeliverable?: boolean;
+  /** Mobile app layout: stepper and price stacked on the right. */
+  appStyle?: boolean;
 }
 
 // One cart line with its own debounced qty stepper.
@@ -45,6 +47,7 @@ const CheckoutItemRow = ({
   maxCartItemsCount,
   otherLinesQty,
   isUndeliverable,
+  appStyle = false,
 }: CheckoutItemRowProps) => {
   const { guard: guardClosed, closedProps } = useStoreClosed();
   const variant = product?.variants?.[0] || {};
@@ -92,6 +95,136 @@ const CheckoutItemRow = ({
   const offPercent = hasDiscount
     ? Math.round(((basePrice - unitPrice) / basePrice) * 100)
     : 0;
+
+  const stepper = (
+    <div
+      {...closedProps}
+      className={`flex items-center primaryColorBorder border rounded-lg overflow-hidden ${closedProps.className ?? ""}`}
+    >
+      {/* At one unit the minus turns into remove, like the app. */}
+      <button
+        type="button"
+        className="w-7 h-7 flex items-center justify-center primaryColor dark:text-white hover:primaryLightBack transition"
+        onClick={
+          qty <= 1 ? () => onRemoveUnits(product, variantId, qty) : decrement
+        }
+        aria-label={qty <= 1 ? t("delete") : t("decrease")}
+      >
+        {qty <= 1 ? <FiTrash2 size={13} /> : <FiMinus size={13} />}
+      </button>
+      <span className="text-sm font-bold w-6 text-center primaryColor dark:text-white">
+        {qty}
+      </span>
+      <button
+        type="button"
+        className="w-7 h-7 flex items-center justify-center primaryColor dark:text-white disabled:opacity-30 disabled:cursor-not-allowed hover:primaryLightBack transition"
+        onClick={guardClosed(increment)}
+        disabled={atMaxQty}
+        title={atMaxQty ? t("max_cart_limit_error") : undefined}
+      >
+        <FiPlus size={13} />
+      </button>
+    </div>
+  );
+
+  const blockedBadge = isUndeliverable ? (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold text-red-500 dark:text-red-400">
+      <FiMapPin size={14} className="shrink-0" />
+      {t("not_deliverable_to_this_address") ||
+        "Can't be delivered to this address"}
+    </span>
+  ) : outOfStock ? (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-1.5 text-[11px] font-semibold text-red-500 dark:text-red-400">
+      <MdRemoveShoppingCart size={14} className="shrink-0" />
+      {t("sold_out") || "Sold Out"}
+    </span>
+  ) : null;
+
+  // Chosen options as one sentence, the way the app prints them.
+  const addonText = (product?.addons ?? [])
+    .map(
+      (addon: any) =>
+        `${addon?.qty > 1 ? `${addon.qty} × ` : ""}${addon?.option_name}${
+          addon?.is_free ? "" : ` +${money(addon?.line_price)}`
+        }`,
+    )
+    .join(", ");
+
+  if (appStyle) {
+    return (
+      <div className="flex gap-3 px-4 py-4 border-t">
+        <div className="relative w-[72px] h-[72px] rounded-xl overflow-hidden cardBorder shrink-0 bg-white dark:bg-zinc-900">
+          <ImageWithPlaceholder
+            src={imageUrl}
+            alt={productName}
+            width={160}
+            height={160}
+            className={`w-full h-full object-cover ${
+              outOfStock ? "opacity-40 grayscale" : ""
+            }`}
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-sm leading-snug line-clamp-2">
+                {productName}
+              </h3>
+              {variantText && (
+                <p className="mt-0.5 text-xs SecondaryTextColor truncate">
+                  {variantText}
+                </p>
+              )}
+            </div>
+
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              {blockedBadge ?? stepper}
+              <span className="flex items-baseline gap-1.5">
+                {hasDiscount && (
+                  <span className="text-[11px] SecondaryTextColor line-through">
+                    {money(basePrice * qty)}
+                  </span>
+                )}
+                <span className="text-[15px] font-bold whitespace-nowrap">
+                  {money(unitPrice * qty)}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {addonText && (
+            <p className="text-xs SecondaryTextColor leading-snug">
+              {addonText}
+            </p>
+          )}
+          {!!product?.addon_total && (
+            <p className="text-[11px] italic SecondaryTextColor">
+              {t("includes_addons_worth") || "Includes add-ons worth"}{" "}
+              {money(product.addon_total)}
+            </p>
+          )}
+
+          {product?.slab_discount_message && (
+            <p className="inline-flex w-fit items-center gap-1.5 text-[12px] font-semibold text-green-700 dark:text-green-400">
+              <BsLock size={12} className="shrink-0" />
+              {product.slab_discount_message}
+            </p>
+          )}
+
+          {Number(product?.product_type) === 5 && (
+            <div className="flex flex-wrap items-center gap-3">
+              <PrescriptionUpload
+                variantId={variantId}
+                isRequired={product?.is_prescription_required}
+                inline
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-3 md:gap-4 px-4 md:px-5 py-4 border-t hover:bg-black/[0.015] dark:hover:bg-white/[0.02] transition-colors">

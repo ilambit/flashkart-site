@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "@/utils/translation";
 import * as api from "@/api/apiRoutes";
 import { sanitizeHtml } from "@/utils/sanitizeHtml";
@@ -64,7 +64,6 @@ const ProductDescription = ({ product, ratingData }: ProductDescriptionProps) =>
       });
       setRatingImages(result.data);
     } catch (error) {
-      console.log("error", error);
     }
   };
 

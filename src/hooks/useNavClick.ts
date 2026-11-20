@@ -57,7 +57,6 @@ const useNavClick = () => {
       try {
         await handler();
       } catch (error) {
-        console.log("Navigation click failed", error);
         // Clear pending status on handler failure.
         pendingRef.current = false;
         setPendingKey(null);

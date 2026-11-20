@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { setShowLocation } from "@/redux/slices/locationModalSlice";
 import { buildLocalizedPath } from "@/utils/canonicalUrl";
@@ -12,10 +12,10 @@ const useZoneRequired = () => {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams<{ lang?: string; zone?: string }>();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { defaultCode } = useLanguages();
-  const storedZoneSlug = useSelector(
-    (state: any) => state?.LocationModal?.selectedZone?.slug,
+  const storedZoneSlug = useAppSelector(
+    (state) => state?.LocationModal?.selectedZone?.slug,
   );
   // Gate enforcement effect until hydration settles.
   const isHydrated = useIsHydrated();

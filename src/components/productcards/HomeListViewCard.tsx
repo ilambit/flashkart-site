@@ -1,3 +1,4 @@
+import { useAppSelector } from "@/redux/hooks";
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { t } from "@/utils/translation";
 import { FaMinus, FaPlus, FaRegEye, FaStar } from "react-icons/fa";
@@ -5,15 +6,10 @@ import {
   MdAddShoppingCart} from "react-icons/md";
 import Link from "next/link";
 import { useProductStoryClick } from "../productstory/ProductStoryContext";
-import VariantsModal from "../variantsmodal/VariantsModal";
-import AddonsModal from "../addonsmodal/AddonsModal";
-import AddonRepeatModal from "../addonsmodal/AddonRepeatModal";
-import AddonLinesModal from "../addonsmodal/AddonLinesModal";
-import ProductDetailModal from "../productdetailmodal/ProductDetailModal";
-import { useSelector } from "react-redux";
 import { useFavoriteToggle } from "@/hooks/useFavoriteToggle";
 import { BiHeart, BiSolidHeart } from "react-icons/bi";
 import MobileCardGallery from "./MobileCardGallery";
+import HoverImageStack from "./HoverImageStack";
 import FewLeftBadge from "./FewLeftBadge";
 import TimeIcon from "./TimeIcon";
 import {
@@ -31,6 +27,13 @@ import { ZigzagEdgeIcon } from "@/components/icons";
 import ProductTypeTag from "../productdetail/ProductTypeTag";
 import ImageWithPlaceholder from "../image-with-placeholder/ImageWithPlaceholder";
 
+import dynamic from "next/dynamic";
+import MountOnOpen from "./MountOnOpen";
+const VariantsModal = dynamic(() => import("../variantsmodal/VariantsModal"), { ssr: false });
+const AddonsModal = dynamic(() => import("../addonsmodal/AddonsModal"), { ssr: false });
+const AddonRepeatModal = dynamic(() => import("../addonsmodal/AddonRepeatModal"), { ssr: false });
+const AddonLinesModal = dynamic(() => import("../addonsmodal/AddonLinesModal"), { ssr: false });
+const ProductDetailModal = dynamic(() => import("../productdetailmodal/ProductDetailModal"), { ssr: false });
 interface HomeListViewCardProps {
   product: any;
   radius?: number | string | null;
@@ -46,8 +49,8 @@ const HomeListViewCard = ({
   // Product's decimal_point as fallback (country_setting omits it).
   const { currency, decimals } = useCurrency(product);
   const money = (val: number) => formatCurrency(val, currency, decimals, true);
-  const city = useSelector((state: any) => state.City.city);
-  const shopMode = useSelector((state: any) => state.ShopMode.mode);
+  const city = useAppSelector((state) => state.City.city);
+  const shopMode = useAppSelector((state) => state.ShopMode.mode);
 
   // ETA badge: quick mode + product has an ETA. Hydration-gated (shopMode is persisted).
   const hydrated = useIsHydrated();
@@ -57,10 +60,7 @@ const HomeListViewCard = ({
   // Seeded synchronously so SSR shows a price; the effect refines it.
   const {
     cart,
-    setting,
     selectedVariant,
-    setSelectedVariant,
-    isProductAlreadyAdded,
     addedQuantity,
     maxQty,
     guestMaxQty,
@@ -121,7 +121,11 @@ const HomeListViewCard = ({
   const [hoverImgIdx, setHoverImgIdx] = useState(0);
   const hoverTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Drives the gallery's mount: hovering is the intent to see every frame.
+  const [hoverActive, setHoverActive] = useState(false);
+
   const startHoverSlide = () => {
+    setHoverActive(true);
     if (galleryImages.length <= 1) return;
     if (hoverTimerRef.current) return;
     hoverTimerRef.current = setInterval(() => {
@@ -134,6 +138,7 @@ const HomeListViewCard = ({
       clearInterval(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
+    setHoverActive(false);
     setHoverImgIdx(0);
   };
 
@@ -162,7 +167,6 @@ const HomeListViewCard = ({
 
   const {
     liked,
-    pending: likePending,
     toggle: handleProductLikes,
     canToggle: canToggleLike,
   } = useFavoriteToggle({
@@ -207,7 +211,8 @@ const HomeListViewCard = ({
           borderColor:
             "color-mix(in srgb, var(--primary-color) 18%, transparent)",
         }}
-        className={`relative flex h-full flex-row items-center w-full gap-3 sm:gap-4 p-2.5 sm:p-3 group border bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-all duration-300 ease-out ${
+        // Mobile mirrors the app: details left, big image right, ADD over it.
+        className={`relative flex h-full flex-row items-center w-full gap-3 sm:gap-4 p-2.5 sm:p-3 group border bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-all duration-300 ease-out max-md:flex-row-reverse max-md:items-start max-md:gap-3 max-md:p-3 ${
           isProductAvailabel ? "cursor-pointer" : ""
         }`}
         onMouseEnter={startHoverSlide}
@@ -216,7 +221,7 @@ const HomeListViewCard = ({
         {/* Discount ribbon, shown only when the API sends a percent. */}
         {discountPercent && (
           <div
-            className={`absolute top-0 left-4 z-10 drop-shadow-md ${closedDecorClass}`}
+            className={`absolute top-0 left-4 z-10 drop-shadow-md max-md:hidden ${closedDecorClass}`}
           >
             <div className="primaryBackColor text-white text-center px-1.5 pt-1 pb-0.5">
               <span className="block text-[11px] md:text-[13px] font-extrabold leading-none">
@@ -244,31 +249,26 @@ const HomeListViewCard = ({
         </button>
 
         {/* Image */}
-        <div className="relative shrink-0 w-24 h-24 sm:w-32 sm:h-32 overflow-hidden rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-zinc-800 dark:to-zinc-900">
+        <div className="relative shrink-0 w-24 h-24 md:w-32 md:h-32 max-md:w-[44%] max-md:h-auto max-md:aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-zinc-800 dark:to-zinc-900">
           {galleryImages.length > 1 ? (
             <>
             <MobileCardGallery
               images={galleryImages}
               alt={product?.name}
-              imgClassName={`p-3 ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
+              imgClassName={`p-3 max-md:p-0 max-md:object-cover ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
             />
             {/* Cross-fade, not remount: images stacked, only active one opaque, avoids a flash. */}
             <div className="max-md:hidden relative h-full w-full transition-transform duration-300 ease-out group-hover:scale-110">
-              {galleryImages.map((imgSrc, idx) => (
-                <ImageWithPlaceholder
-                  key={idx}
-                  src={imgSrc}
-                  alt={product?.name}
-                  width={400}
-                  height={400}
-                  className={`absolute inset-0 w-full h-full object-contain p-3 transition-opacity duration-700 ease-in-out ${
-                    idx === hoverImgIdx ? "opacity-100" : "opacity-0"
-                  } ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
-                  sizes="(max-width: 640px) 40vw, 200px"
-                  quality={75}
-                  priority={idx === 0}
-                />
-              ))}
+              <HoverImageStack
+                  hovered={hoverActive}
+                images={galleryImages}
+                activeIdx={hoverImgIdx}
+                alt={product?.name}
+                width={400}
+                height={400}
+                sizes="(max-width: 640px) 40vw, 200px"
+                imgClassName={`w-full h-full object-contain p-3 ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
+              />
             </div>
             </>
           ) : (
@@ -277,7 +277,7 @@ const HomeListViewCard = ({
               alt={product?.name}
               width={400}
               height={400}
-              className={`w-full h-full object-contain p-3 transition-transform duration-300 ease-out group-hover:scale-110 ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
+              className={`w-full h-full object-contain p-3 max-md:p-0 max-md:object-cover transition-transform duration-300 ease-out group-hover:scale-110 ${isProductAvailabel || storeClosed ? "grayscale" : ""}`}
               sizes="(max-width: 640px) 40vw, 200px"
               quality={75}
             />
@@ -310,7 +310,7 @@ const HomeListViewCard = ({
 
         {/* vertical divider between image and details — API-themed hairline. */}
         <div
-          className="hidden sm:block self-stretch w-px my-1"
+          className="hidden md:block self-stretch w-px my-1"
           style={{
             background:
               "color-mix(in srgb, var(--primary-color) 14%, transparent)",
@@ -322,12 +322,12 @@ const HomeListViewCard = ({
           {/* Details */}
           <div className="flex flex-1 min-w-0 flex-col">
             {product?.category_name && (
-              <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-zinc-500 line-clamp-1">
+              <span className="max-md:hidden text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-zinc-500 line-clamp-1">
                 {product.category_name}
               </span>
             )}
 
-            <h3 className="textColor text-sm sm:text-base font-bold capitalize line-clamp-2 transition-colors duration-200 group-hover:primaryColor dark:group-hover:text-white">
+            <h3 className="max-md:order-1 textColor text-[12px] md:text-base font-bold capitalize line-clamp-2 transition-colors duration-200 group-hover:primaryColor dark:group-hover:text-white">
               <ProductTypeTag
                 type={product?.product_type ?? product?.indicator}
                 className="me-1.5 align-[-2px]"
@@ -337,10 +337,10 @@ const HomeListViewCard = ({
             </h3>
 
             {/* rating + delivery on one line */}
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="max-md:order-3 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               {!!product?.product_rating &&
                 Number(product?.rating_count) > 0 && (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-gray-700 dark:text-zinc-200">
+                  <span className="flex items-center gap-1 text-[10px] md:text-[11px] font-bold text-gray-700 dark:text-zinc-200">
                     <FaStar size={11} className="text-amber-400" />
                     {Number(product?.average_rating).toFixed(1)}
                     <span className="font-normal text-gray-400 dark:text-zinc-500">
@@ -351,7 +351,7 @@ const HomeListViewCard = ({
             </div>
 
             {product?.short_description && (
-              <p className="mt-1 text-[12px] sm:text-sm text-gray-500 dark:text-zinc-400 leading-snug line-clamp-1 lg:line-clamp-2">
+              <p className="max-md:order-4 mt-1 text-[10px] md:text-sm text-gray-500 dark:text-zinc-400 leading-snug line-clamp-1 lg:line-clamp-2">
                 {product.short_description}
               </p>
             )}
@@ -359,12 +359,20 @@ const HomeListViewCard = ({
             <FewLeftBadge
               variant={selectedVariant}
               product={product}
-              className="mt-1"
+              className="mt-1 max-md:order-5"
             />
 
+            {/* Mobile ETA sits with the details, like the app; desktop keeps it by the ADD button. */}
+            {showQuickDelivery && !isProductAvailabel && (
+              <span className="md:hidden order-6 mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-gray-600 dark:text-zinc-300">
+                <TimeIcon size={13} className="primaryColor dark:text-zinc-200" />
+                {deliveryLabel}
+              </span>
+            )}
+
             {/* Price */}
-            <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <span className="textColor text-lg sm:text-xl font-extrabold tracking-tight">
+            <div className="max-md:order-2 mt-2 max-md:mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="textColor text-[14px] md:text-xl font-extrabold tracking-tight">
                 {money(
                   hasDiscount
                     ? selectedVariant?.discounted_price
@@ -373,11 +381,11 @@ const HomeListViewCard = ({
               </span>
               {hasDiscount && (
                 <>
-                  <span className="text-xs sm:text-sm line-through SecondaryTextColor">
+                  <span className="text-[10px] md:text-sm line-through SecondaryTextColor">
                     {money(selectedVariant?.price)}
                   </span>
                   {(discountPercent ?? 0) > 0 && (
-                    <span className="text-[11px] sm:text-xs font-bold text-green-600 whitespace-nowrap">
+                    <span className="max-md:basis-full text-[10px] md:text-xs font-bold text-green-600 whitespace-nowrap">
                       {discountPercent}% {t("off")}
                     </span>
                   )}
@@ -389,16 +397,16 @@ const HomeListViewCard = ({
           {/* Actions — ADD / stepper only; wishlist sits in the card corner. */}
           {/* One row under the details on small screens — stacking them there
               made the card tall and squeezed the title. */}
-          <div className="flex w-full flex-row items-center justify-between gap-2 lg:w-auto lg:flex-col lg:items-end lg:self-center lg:shrink-0">
+          <div className="flex w-full flex-row items-center justify-between gap-2 lg:w-auto lg:flex-col lg:items-end lg:self-center lg:shrink-0 max-md:absolute max-md:bottom-3 max-md:right-3 max-md:z-20 max-md:w-auto">
             {showQuickDelivery && !isProductAvailabel && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] font-bold text-gray-700 dark:text-zinc-300">
+              <span className="max-md:hidden inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] font-bold text-gray-700 dark:text-zinc-300">
                 {/* 12px, not 9px — this icon's detail collapses into a smudge smaller. */}
                 <TimeIcon size={12} className="primaryColor dark:text-zinc-200" />
                 {deliveryLabel}
               </span>
             )}
             {/* ADD / stepper — min width so long translated labels can grow it */}
-            <div className="w-auto min-w-[76px] sm:min-w-[84px] shrink-0">
+            <div className="w-auto min-w-[64px] md:min-w-[84px] shrink-0">
               {isProductAvailabel ? (
                 <button
                   type="button"
@@ -469,14 +477,14 @@ const HomeListViewCard = ({
                       : handleIntialAddToCart(e),
                   )}
                   {...closedProps}
-                  className={`flex h-9 w-full flex-col items-center justify-center overflow-hidden rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 px-2 text-[13px] md:text-[14px] font-semibold whitespace-nowrap hover:primaryLightBack transition ${closedProps.className ?? ""}`}
+                  className={`flex h-9 w-full flex-col items-center justify-center overflow-hidden rounded-lg border primaryBorderColor primaryColor bg-white dark:bg-zinc-900 px-2 text-[12px] md:text-[14px] font-semibold whitespace-nowrap hover:primaryLightBack transition max-md:h-auto max-md:px-0 max-md:shadow-sm ${closedProps.className ?? ""}`}
                 >
-                  <span className="flex items-center gap-1 leading-none">
-                    <MdAddShoppingCart size={14} className="shrink-0" />
+                  <span className="flex items-center gap-1 leading-none max-md:px-3 max-md:py-1.5">
+                    <MdAddShoppingCart size={14} className="shrink-0 max-md:hidden" />
                     {t("add")}
                   </span>
                   {(hasAddons || productsVariants?.length > 1) && (
-                    <span className="w-full truncate text-center text-[9px] font-medium normal-case leading-none mt-0.5 opacity-80">
+                    <span className="w-full truncate text-center text-[9px] font-medium normal-case leading-none mt-0.5 opacity-80 max-md:mt-0 max-md:px-1.5 max-md:py-0.5 max-md:text-[9px] max-md:opacity-100 max-md:bg-[var(--primary-color)] max-md:text-white">
                       {hasAddons
                         ? t("addon_customisable")
                         : `${productsVariants?.length} ${t("options") || "options"}`}
@@ -488,41 +496,51 @@ const HomeListViewCard = ({
           </div>
         </div>
       </Link>
-      <ProductDetailModal
-        product={product}
-        showDetailModal={showProductDetail}
-        setShowDetailModal={setShowProductDetail}
-      />
-      <VariantsModal
-        product={product}
-        showVariants={showVariants}
-        setShowVariants={setShowVariants}
-      />
-      <AddonsModal
-        product={product}
-        showAddons={showAddons}
-        setShowAddons={setShowAddons}
-        variant={selectedVariant}
-      />
-      <AddonRepeatModal
-        open={showAddonRepeat}
-        setOpen={setShowAddonRepeat}
-        product={product}
-        lastLine={lastAddonLine}
-        onRepeat={repeatLastAddonLine}
-        onAddNew={openAddonSheetAfterClose}
-      />
-      <AddonLinesModal
-        open={showAddonLines}
-        setOpen={setShowAddonLines}
-        product={product}
-        lines={addonLines}
-        onRemoveLine={removeAddonLine}
-        onRepeatLine={repeatAddonLine}
-        onAddNew={openAddonSheetAfterClose}
-      />
+      <MountOnOpen open={showProductDetail}>
+        <ProductDetailModal
+          product={product}
+          showDetailModal={showProductDetail}
+          setShowDetailModal={setShowProductDetail}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showVariants}>
+        <VariantsModal
+          product={product}
+          showVariants={showVariants}
+          setShowVariants={setShowVariants}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddons}>
+        <AddonsModal
+          product={product}
+          showAddons={showAddons}
+          setShowAddons={setShowAddons}
+          variant={selectedVariant}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddonRepeat}>
+        <AddonRepeatModal
+          open={showAddonRepeat}
+          setOpen={setShowAddonRepeat}
+          product={product}
+          lastLine={lastAddonLine}
+          onRepeat={repeatLastAddonLine}
+          onAddNew={openAddonSheetAfterClose}
+        />
+      </MountOnOpen>
+      <MountOnOpen open={showAddonLines}>
+        <AddonLinesModal
+          open={showAddonLines}
+          setOpen={setShowAddonLines}
+          product={product}
+          lines={addonLines}
+          onRemoveLine={removeAddonLine}
+          onRepeatLine={repeatAddonLine}
+          onAddNew={openAddonSheetAfterClose}
+        />
+      </MountOnOpen>
     </div>
   );
 };
 
-export default HomeListViewCard;
+export default React.memo(HomeListViewCard);

@@ -1,5 +1,5 @@
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useParams } from "next/navigation";
 import { setSelectedZone } from "@/redux/slices/locationModalSlice";
 import * as api from "@/api/apiRoutes";
@@ -7,9 +7,9 @@ import * as api from "@/api/apiRoutes";
 // Syncs zone from the URL into Redux and resolves full zone metadata.
 const useZoneAdopt = () => {
   const params = useParams<{ zone?: string }>();
-  const dispatch = useDispatch();
-  const storedSlug = useSelector(
-    (state: any) => state?.LocationModal?.selectedZone?.slug,
+  const dispatch = useAppDispatch();
+  const storedSlug = useAppSelector(
+    (state) => state?.LocationModal?.selectedZone?.slug,
   );
   // Track URL zone being adopted to prevent re-entrancy.
   const adoptingRef = useRef<string | null>(null);
@@ -28,10 +28,6 @@ const useZoneAdopt = () => {
     const timer = setTimeout(async () => {
       if (!active) return;
       if (process.env.NODE_ENV !== "production") {
-        console.log("[ZONE TRACE] source=useZoneAdopt (placeholder)", {
-          urlZone,
-          storedSlug,
-        });
       }
       // Seed placeholder slug and upgrade when resolved.
       dispatch(setSelectedZone({ id: null, name: null, slug: urlZone }));
@@ -41,17 +37,12 @@ const useZoneAdopt = () => {
         const match = zones.find((z: any) => z?.slug === urlZone);
         if (!active || !match) return;
         if (process.env.NODE_ENV !== "production") {
-          console.log("[ZONE TRACE] source=useZoneAdopt (resolved)", {
-            id: match.id,
-            name: match.name,
-            slug: match.slug,
-          });
         }
         dispatch(
           setSelectedZone({ id: match.id, name: match.name, slug: match.slug }),
         );
       } catch (err: any) {
-        console.log("[zone-adopt] zone name resolve failed:", err?.message);
+        console.error("[useZoneAdopt]", err);
       }
     }, 0);
     return () => {

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import { useAppSelector } from "@/redux/hooks";
+import { useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { useSelector } from 'react-redux';
 // import { useTheme } from 'next-themes';
 import loaderAnimation from '../../assets/shopping.json';
 
@@ -69,8 +69,8 @@ interface LoaderProps {
 /** Loading spinner and full-screen Lottie component */
 const Loader = ({ background, height, width, screen, size }: LoaderProps) => {
   // Primary color for Lottie animation theme
-  const webSettings = useSelector(
-    (state: any) => state.Setting?.setting?.web_settings,
+  const webSettings = useAppSelector(
+    (state) => state.Setting?.setting?.web_settings,
   );
   const resolvedTheme: string = "light";
   const primaryColor = useMemo(() => {
